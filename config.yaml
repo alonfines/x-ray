@@ -1,0 +1,91 @@
+experiment_name: "baseline"
+
+# Disease labels to use
+use_labels:
+  - Atelectasis
+  - Cardiomegaly
+  - Consolidation
+  - Pleural Effusion
+  - Pneumothorax
+
+# Data configuration (Matches data.py expectations)
+data:
+  working_dir: "/gpfs0/tamyr/users/alonfi/XRay"
+  chexpert_dir: "/gpfs0/tamyr/projects/data/chest_xray/chexpert"
+  raw_train_csv: "train.csv"
+  raw_valid_csv: "valid.csv"
+  train_split_csv: "train_split.csv"
+  valid_split_csv: "valid_split.csv"
+  conformal_split_csv: "conformal_split.csv"
+  test_split_csv: "test_split.csv"
+  train_images_dir: "train"
+  valid_images_dir: "valid"
+  conformal_split_size: 800
+
+# Training dataloader settings
+training:
+  batch_size: 32
+  num_workers: 16
+
+# Lightning Trainer configuration
+trainer:
+  fast_dev_run: False
+  max_epochs: 150
+  precision: 'bf16-mixed'
+  accelerator: "gpu"
+  devices: "auto"
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      project: "cxr_uda"
+      name: "baseline_run"
+      tags:
+        - baseline
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
+      init_args:
+        monitor: "val_loss"
+        patience: 100
+        mode: "min"
+        verbose: True
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: 'epoch'
+
+# Checkpoint configuration
+chkpt_callback:
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+  dirpath: "/gpfs0/tamyr/users/alonfi/XRay/checkpoints"
+  filename: "densenet-{epoch:02d}-{val_loss:.3f}"
+
+# Nested Model configuration matching LightningCLI
+model:
+  class_path: chest_xray.pl_modules.CXRLitModule
+  init_args:
+    lr: 0.001
+    min_lr: 1e-6
+    w_decay: 0.05
+    task_weights: # calculated from the training set
+      - 0.733 # Atelectasis
+      - 0.813 # Cardiomegaly
+      - 1.000 # Consolidation
+      - 0.388 # Pleural Effusion
+      - 0.956 # Pneumothorax
+    model:
+      class_path: chest_xray.models.CXRDenseNet
+      init_args:
+        imagenet_pretrained: True
+        num_classes: 5
+
+# Conformal prediction configuration
+conformal:
+  alpha: 0.1  # 1 - alpha = 0.9 (90% confidence level)
+  calibration_dir: "/gpfs0/tamyr/users/alonfi/XRay/conformal_calibration"
+  q_hat_file: "/gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/q_hat.pt"
+
+# Output configuration
+output:
+  checkpoint_dir: "/gpfs0/tamyr/users/alonfi/XRay/checkpoints"
+  log_dir: "/gpfs0/tamyr/users/alonfi/XRay/logs"

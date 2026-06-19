@@ -1,0 +1,1 @@
+Review the code, if there are unnecessary parts remove them. If you can make the code appear more organized, do it. if you can make it more concise do it. if you need to change something with the logic ask it as a yes/no question. if no continue. ask one qusetion at a time.

@@ -1,0 +1,45 @@
+GPU available: True (mps), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+  | Name        | Type               | Params | In sizes         | Out sizes
+----------------------------------------------------------------------------------
+0 | model       | CXRDenseNet        | 7.0 M  | [1, 1, 224, 224] | [1, 13]
+1 | train_acc   | MultilabelAccuracy | 0      | ?                | ?
+2 | val_acc     | MultilabelAccuracy | 0      | ?                | ?
+3 | train_auroc | MultilabelAUROC    | 0      | ?                | ?
+4 | val_auroc   | MultilabelAUROC    | 0      | ?                | ?
+5 | criterion   | BCEWithLogitsLoss  | 0      | ?                | ?
+----------------------------------------------------------------------------------
+7.0 M     Trainable params
+0         Non-trainable params
+7.0 M     Total params
+27.844    Total estimated model params size (MB)
+
+
+Epoch 0: 100%|██████████| 1/1 [00:06<00:00,  6.69s/it, v_num=dao7, train_loss=nan.0]
+Monitored metric val_loss = nan is not finite. Previous best value was inf. Signaling Trainer to stop.
+
+Epoch 0: 100%|██████████| 1/1 [00:12<00:00, 12.30s/it, v_num=dao7, train_loss=nan.0, val_loss=nan.0, val_acc=0.692, val_auroc_mean=0.000]
+Validation DataLoader 0: 100%|██████████| 1/1 [00:00<00:00, 13.49it/s]
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃           Validate metric            ┃             DataLoader 0             ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│               val_acc                │          0.692307710647583           │
+│        val_auroc_Atelectasis         │                 0.0                  │
+│        val_auroc_Cardiomegaly        │                 0.0                  │
+│       val_auroc_Consolidation        │                 0.0                  │
+│           val_auroc_Edema            │                 0.0                  │
+│ val_auroc_Enlarged_Cardiomediastinum │                 0.0                  │
+│          val_auroc_Fracture          │                 0.0                  │
+│        val_auroc_Lung_Lesion         │                 0.0                  │
+│        val_auroc_Lung_Opacity        │                 0.0                  │
+│      val_auroc_Pleural_Effusion      │                 0.0                  │
+│       val_auroc_Pleural_Other        │                 0.0                  │
+│         val_auroc_Pneumonia          │                 0.0                  │
+│        val_auroc_Pneumothorax        │                 0.0                  │
+│      val_auroc_Support_Devices       │                 0.0                  │
+│            val_auroc_mean            │                 0.0                  │
+│               val_loss               │                 nan                  │
+└──────────────────────────────────────┴──────────────────────────────────────┘
+Training complete! Best model saved to ./checkpoints

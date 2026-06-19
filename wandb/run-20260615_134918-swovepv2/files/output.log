@@ -1,0 +1,168 @@
+GPU available: True (mps), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+  | Name        | Type               | Params | In sizes         | Out sizes
+----------------------------------------------------------------------------------
+0 | model       | CXRDenseNet        | 7.0 M  | [1, 1, 224, 224] | [1, 14]
+1 | train_acc   | MultilabelAccuracy | 0      | ?                | ?
+2 | val_acc     | MultilabelAccuracy | 0      | ?                | ?
+3 | train_auroc | MultilabelAUROC    | 0      | ?                | ?
+4 | val_auroc   | MultilabelAUROC    | 0      | ?                | ?
+5 | criterion   | BCEWithLogitsLoss  | 0      | ?                | ?
+----------------------------------------------------------------------------------
+7.0 M     Trainable params
+0         Non-trainable params
+7.0 M     Total params
+27.848    Total estimated model params size (MB)
+
+
+Epoch 0:   0%|          | 0/1 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/Users/alonfines/Desktop/Thesis/Poc CP/train.py", line 239, in <module>
+    train()
+  File "/Users/alonfines/Desktop/Thesis/Poc CP/train.py", line 230, in train
+    trainer.fit(model, datamodule=data_module)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/trainer.py", line 532, in fit
+    call._call_and_handle_interrupt(
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/call.py", line 43, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/trainer.py", line 571, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/trainer.py", line 980, in _run
+    results = self._run_stage()
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/trainer.py", line 1023, in _run_stage
+    self.fit_loop.run()
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/fit_loop.py", line 202, in run
+    self.advance()
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/fit_loop.py", line 355, in advance
+    self.epoch_loop.run(self._data_fetcher)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 133, in run
+    self.advance(data_fetcher)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 219, in advance
+    batch_output = self.automatic_optimization.run(trainer.optimizers[0], kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 188, in run
+    self._optimizer_step(kwargs.get("batch_idx", 0), closure)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 266, in _optimizer_step
+    call._call_lightning_module_hook(
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/call.py", line 146, in _call_lightning_module_hook
+    output = fn(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/core/module.py", line 1276, in optimizer_step
+    optimizer.step(closure=optimizer_closure)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/core/optimizer.py", line 161, in step
+    step_output = self._strategy.optimizer_step(self._optimizer, closure, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/strategies/strategy.py", line 231, in optimizer_step
+    return self.precision_plugin.optimizer_step(optimizer, model=model, closure=closure, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/plugins/precision/precision_plugin.py", line 116, in optimizer_step
+    return optimizer.step(closure=closure, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torch/optim/optimizer.py", line 280, in wrapper
+    out = func(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torch/optim/optimizer.py", line 33, in _use_grad
+    ret = func(self, *args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torch/optim/adam.py", line 121, in step
+    loss = closure()
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/plugins/precision/precision_plugin.py", line 103, in _wrap_closure
+    closure_result = closure()
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 142, in __call__
+    self._result = self.closure(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torch/utils/_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 128, in closure
+    step_output = self._step_fn()
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 315, in _training_step
+    training_step_output = call._call_strategy_hook(trainer, "training_step", *kwargs.values())
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/call.py", line 294, in _call_strategy_hook
+    output = fn(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/strategies/strategy.py", line 380, in training_step
+    return self.model.training_step(*args, **kwargs)
+  File "/Users/alonfines/Desktop/Thesis/Poc CP/train.py", line 119, in training_step
+    self.train_acc(probs, labels.int())
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torch/nn/modules/module.py", line 1501, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torchmetrics/metric.py", line 236, in forward
+    self._forward_cache = self._forward_reduce_state_update(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torchmetrics/metric.py", line 302, in _forward_reduce_state_update
+    self.update(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torchmetrics/metric.py", line 400, in wrapped_func
+    raise err
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torchmetrics/metric.py", line 390, in wrapped_func
+    update(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torchmetrics/classification/stat_scores.py", line 455, in update
+    _multilabel_stat_scores_tensor_validation(
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torchmetrics/functional/classification/stat_scores.py", line 625, in _multilabel_stat_scores_tensor_validation
+    raise RuntimeError(
+RuntimeError: Detected the following values in `target`: tensor([-1,  0,  1], device='mps:0', dtype=torch.int32) but expected only the following values [0, 1].
+Traceback (most recent call last):
+  File "/Users/alonfines/Desktop/Thesis/Poc CP/train.py", line 239, in <module>
+    train()
+  File "/Users/alonfines/Desktop/Thesis/Poc CP/train.py", line 230, in train
+    trainer.fit(model, datamodule=data_module)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/trainer.py", line 532, in fit
+    call._call_and_handle_interrupt(
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/call.py", line 43, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/trainer.py", line 571, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/trainer.py", line 980, in _run
+    results = self._run_stage()
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/trainer.py", line 1023, in _run_stage
+    self.fit_loop.run()
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/fit_loop.py", line 202, in run
+    self.advance()
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/fit_loop.py", line 355, in advance
+    self.epoch_loop.run(self._data_fetcher)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 133, in run
+    self.advance(data_fetcher)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 219, in advance
+    batch_output = self.automatic_optimization.run(trainer.optimizers[0], kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 188, in run
+    self._optimizer_step(kwargs.get("batch_idx", 0), closure)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 266, in _optimizer_step
+    call._call_lightning_module_hook(
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/call.py", line 146, in _call_lightning_module_hook
+    output = fn(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/core/module.py", line 1276, in optimizer_step
+    optimizer.step(closure=optimizer_closure)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/core/optimizer.py", line 161, in step
+    step_output = self._strategy.optimizer_step(self._optimizer, closure, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/strategies/strategy.py", line 231, in optimizer_step
+    return self.precision_plugin.optimizer_step(optimizer, model=model, closure=closure, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/plugins/precision/precision_plugin.py", line 116, in optimizer_step
+    return optimizer.step(closure=closure, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torch/optim/optimizer.py", line 280, in wrapper
+    out = func(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torch/optim/optimizer.py", line 33, in _use_grad
+    ret = func(self, *args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torch/optim/adam.py", line 121, in step
+    loss = closure()
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/plugins/precision/precision_plugin.py", line 103, in _wrap_closure
+    closure_result = closure()
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 142, in __call__
+    self._result = self.closure(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torch/utils/_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 128, in closure
+    step_output = self._step_fn()
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 315, in _training_step
+    training_step_output = call._call_strategy_hook(trainer, "training_step", *kwargs.values())
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/trainer/call.py", line 294, in _call_strategy_hook
+    output = fn(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/lightning/pytorch/strategies/strategy.py", line 380, in training_step
+    return self.model.training_step(*args, **kwargs)
+  File "/Users/alonfines/Desktop/Thesis/Poc CP/train.py", line 119, in training_step
+    self.train_acc(probs, labels.int())
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torch/nn/modules/module.py", line 1501, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torchmetrics/metric.py", line 236, in forward
+    self._forward_cache = self._forward_reduce_state_update(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torchmetrics/metric.py", line 302, in _forward_reduce_state_update
+    self.update(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torchmetrics/metric.py", line 400, in wrapped_func
+    raise err
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torchmetrics/metric.py", line 390, in wrapped_func
+    update(*args, **kwargs)
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torchmetrics/classification/stat_scores.py", line 455, in update
+    _multilabel_stat_scores_tensor_validation(
+  File "/Users/alonfines/Library/Python/3.9/lib/python/site-packages/torchmetrics/functional/classification/stat_scores.py", line 625, in _multilabel_stat_scores_tensor_validation
+    raise RuntimeError(
+RuntimeError: Detected the following values in `target`: tensor([-1,  0,  1], device='mps:0', dtype=torch.int32) but expected only the following values [0, 1].

@@ -1,0 +1,74 @@
+wandb_version: 1
+
+data:
+  desc: null
+  value:
+    chexpert_dir: /Users/alonfines/Desktop/Thesis/Poc CP/chexpert
+    raw_train_csv: train.csv
+    raw_valid_csv: valid.csv
+    train_split_csv: train_split.csv
+    valid_split_csv: valid_split.csv
+    conformal_split_csv: conformal_split.csv
+    train_images_dir: train
+    valid_images_dir: valid
+    conformal_split_size: 1
+model:
+  desc: null
+  value:
+    architecture: densenet121
+    pretrained: true
+    num_classes: 14
+training:
+  desc: null
+  value:
+    batch_size: 32
+    epochs: 1
+    learning_rate: 0.001
+    validation_split: 0.2
+output:
+  desc: null
+  value:
+    checkpoint_dir: ./checkpoints
+    log_dir: ./logs
+_wandb:
+  desc: null
+  value:
+    python_version: 3.9.6
+    cli_version: 0.15.12
+    framework: huggingface
+    huggingface_version: 4.57.6
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1781520558.154269
+    t:
+      1:
+      - 1
+      - 11
+      - 41
+      - 49
+      - 55
+      2:
+      - 1
+      - 11
+      - 41
+      - 49
+      - 55
+      3:
+      - 7
+      - 13
+      - 16
+      - 23
+      4: 3.9.6
+      5: 0.15.12
+      6: 4.57.6
+      8:
+      - 4
+      - 5
+      13: darwin-arm64
+    m:
+    - 1: trainer/global_step
+      6:
+      - 3
+config_path:
+  desc: null
+  value: config.yaml

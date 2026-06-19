@@ -1,0 +1,215 @@
+wandb_version: 1
+
+use_labels:
+  desc: null
+  value:
+  - Enlarged Cardiomediastinum
+  - Cardiomegaly
+  - Lung Opacity
+  - Lung Lesion
+  - Edema
+  - Consolidation
+  - Pneumonia
+  - Atelectasis
+  - Pneumothorax
+  - Pleural Effusion
+  - Pleural Other
+  - Fracture
+  - Support Devices
+data:
+  desc: null
+  value:
+    chexpert_dir: /Users/alonfines/Desktop/Thesis/Poc CP/chexpert
+    raw_train_csv: train.csv
+    raw_valid_csv: valid.csv
+    train_split_csv: train_split.csv
+    valid_split_csv: valid_split.csv
+    conformal_split_csv: conformal_split.csv
+    train_images_dir: train
+    valid_images_dir: valid
+    conformal_split_size: 1
+model:
+  desc: null
+  value:
+    architecture: densenet121
+    pretrained: true
+training:
+  desc: null
+  value:
+    batch_size: 32
+    epochs: 1
+    learning_rate: 0.001
+    validation_split: 0.2
+conformal:
+  desc: null
+  value:
+    alpha: 0.1
+    calibration_dir: ./conformal_calibration
+    q_hat_file: ./conformal_calibration/q_hat.pt
+output:
+  desc: null
+  value:
+    checkpoint_dir: ./checkpoints
+    log_dir: ./logs
+_wandb:
+  desc: null
+  value:
+    python_version: 3.9.6
+    cli_version: 0.15.12
+    framework: huggingface
+    huggingface_version: 4.57.6
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1781525401.881081
+    t:
+      1:
+      - 1
+      - 11
+      - 41
+      - 49
+      - 55
+      2:
+      - 1
+      - 11
+      - 41
+      - 49
+      - 55
+      3:
+      - 7
+      - 13
+      - 16
+      - 23
+      4: 3.9.6
+      5: 0.15.12
+      6: 4.57.6
+      8:
+      - 4
+      - 5
+      13: darwin-arm64
+    m:
+    - 1: trainer/global_step
+      6:
+      - 3
+    - 1: val_loss
+      5: 1
+      6:
+      - 1
+    - 1: val_acc
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Enlarged_Cardiomediastinum
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Cardiomegaly
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Lung_Opacity
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Lung_Lesion
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Edema
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Consolidation
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Pneumonia
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Atelectasis
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Pneumothorax
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Pleural_Effusion
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Pleural_Other
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Fracture
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_Support_Devices
+      5: 1
+      6:
+      - 1
+    - 1: val_auroc_mean
+      5: 1
+      6:
+      - 1
+    - 1: epoch
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Enlarged_Cardiomediastinum
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Cardiomegaly
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Lung_Opacity
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Lung_Lesion
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Edema
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Consolidation
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Pneumonia
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Atelectasis
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Pneumothorax
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Pleural_Effusion
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Pleural_Other
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Fracture
+      5: 1
+      6:
+      - 1
+    - 1: train_auroc_Support_Devices
+      5: 1
+      6:
+      - 1
+config_path:
+  desc: null
+  value: config.yaml

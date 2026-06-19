@@ -1,0 +1,43 @@
+{
+    "os": "macOS-26.5.1-arm64-arm-64bit",
+    "python": "3.9.6",
+    "heartbeatAt": "2026-06-15T12:10:04.043132",
+    "startedAt": "2026-06-15T12:10:01.870857",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/Users/alonfines/Desktop/Thesis/Poc CP/train.py",
+    "codePathLocal": "train.py",
+    "codePath": "train.py",
+    "host": "Alons-MacBook-Pro.local",
+    "username": "alonfines",
+    "executable": "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "cpu_count": 10,
+    "cpu_count_logical": 10,
+    "cpu_freq": {
+        "current": 4,
+        "min": 0,
+        "max": 4
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 4,
+            "min": 0,
+            "max": 4
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 926.3028907775879,
+            "used": 11.706348419189453
+        }
+    },
+    "gpuapple": {
+        "type": "arm",
+        "vendor": "Apple"
+    },
+    "memory": {
+        "total": 24.0
+    }
+}

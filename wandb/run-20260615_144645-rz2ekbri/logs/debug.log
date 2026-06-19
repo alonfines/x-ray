@@ -1,0 +1,30 @@
+2026-06-15 14:46:45,087 INFO    MainThread:72815 [wandb_setup.py:_flush():76] Current SDK version is 0.15.12
+2026-06-15 14:46:45,087 INFO    MainThread:72815 [wandb_setup.py:_flush():76] Configure stats pid to 72815
+2026-06-15 14:46:45,087 INFO    MainThread:72815 [wandb_setup.py:_flush():76] Loading settings from /Users/alonfines/.config/wandb/settings
+2026-06-15 14:46:45,087 INFO    MainThread:72815 [wandb_setup.py:_flush():76] Loading settings from /Users/alonfines/Desktop/Thesis/Poc CP/wandb/settings
+2026-06-15 14:46:45,088 INFO    MainThread:72815 [wandb_setup.py:_flush():76] Loading settings from environment variables: {}
+2026-06-15 14:46:45,088 INFO    MainThread:72815 [wandb_setup.py:_flush():76] Applying setup settings: {'_disable_service': False}
+2026-06-15 14:46:45,088 INFO    MainThread:72815 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'train.py', 'program_abspath': '/Users/alonfines/Desktop/Thesis/Poc CP/train.py', 'program': '/Users/alonfines/Desktop/Thesis/Poc CP/train.py'}
+2026-06-15 14:46:45,088 INFO    MainThread:72815 [wandb_init.py:_log_setup():528] Logging user logs to ./wandb/run-20260615_144645-rz2ekbri/logs/debug.log
+2026-06-15 14:46:45,088 INFO    MainThread:72815 [wandb_init.py:_log_setup():529] Logging internal logs to ./wandb/run-20260615_144645-rz2ekbri/logs/debug-internal.log
+2026-06-15 14:46:45,088 INFO    MainThread:72815 [wandb_init.py:init():568] calling init triggers
+2026-06-15 14:46:45,088 INFO    MainThread:72815 [wandb_init.py:init():575] wandb.init called with sweep_config: {}
+config: {'data': {'chexpert_dir': '/Users/alonfines/Desktop/Thesis/Poc CP/chexpert', 'raw_train_csv': 'train.csv', 'raw_valid_csv': 'valid.csv', 'train_split_csv': 'train_split.csv', 'valid_split_csv': 'valid_split.csv', 'conformal_split_csv': 'conformal_split.csv', 'train_images_dir': 'train', 'valid_images_dir': 'valid', 'conformal_split_size': 1}, 'model': {'architecture': 'densenet121', 'pretrained': True, 'num_classes': 14}, 'training': {'batch_size': 32, 'epochs': 1, 'learning_rate': 0.001, 'validation_split': 0.2}, 'output': {'checkpoint_dir': './checkpoints', 'log_dir': './logs'}}
+2026-06-15 14:46:45,088 INFO    MainThread:72815 [wandb_init.py:init():618] starting backend
+2026-06-15 14:46:45,088 INFO    MainThread:72815 [wandb_init.py:init():622] setting up manager
+2026-06-15 14:46:45,089 INFO    MainThread:72815 [backend.py:_multiprocessing_setup():105] multiprocessing start_methods=spawn,fork,forkserver, using: spawn
+2026-06-15 14:46:45,092 INFO    MainThread:72815 [wandb_init.py:init():628] backend started and connected
+2026-06-15 14:46:45,096 INFO    MainThread:72815 [wandb_init.py:init():720] updated telemetry
+2026-06-15 14:46:45,096 INFO    MainThread:72815 [wandb_init.py:init():753] communicating run to backend with 90.0 second timeout
+2026-06-15 14:46:46,340 INFO    MainThread:72815 [wandb_run.py:_on_init():2220] communicating current version
+2026-06-15 14:46:47,189 INFO    MainThread:72815 [wandb_run.py:_on_init():2229] got version response upgrade_message: "wandb version 0.27.2 is available!  To upgrade, please run:\n $ pip install wandb --upgrade"
+
+2026-06-15 14:46:47,189 INFO    MainThread:72815 [wandb_init.py:init():804] starting run threads in backend
+2026-06-15 14:46:47,211 INFO    MainThread:72815 [wandb_run.py:_console_start():2199] atexit reg
+2026-06-15 14:46:47,211 INFO    MainThread:72815 [wandb_run.py:_redirect():2054] redirect: wrap_raw
+2026-06-15 14:46:47,211 INFO    MainThread:72815 [wandb_run.py:_redirect():2119] Wrapping output streams.
+2026-06-15 14:46:47,211 INFO    MainThread:72815 [wandb_run.py:_redirect():2144] Redirects installed.
+2026-06-15 14:46:47,212 INFO    MainThread:72815 [wandb_init.py:init():845] run started, returning control to user process
+2026-06-15 14:46:48,919 INFO    MainThread:72815 [wandb_run.py:_config_callback():1324] config_cb None None {'config_path': 'config.yaml'}
+2026-06-15 14:47:23,410 INFO    MainThread:72815 [wandb_run.py:_config_callback():1324] config_cb None None {'config_path': 'config.yaml'}
+2026-06-15 14:47:40,370 WARNING MsgRouterThr:72815 [router.py:message_loop():77] message_loop has been closed
