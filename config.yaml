@@ -14,13 +14,19 @@ data:
   chexpert_dir: "/gpfs0/tamyr/projects/data/chest_xray/chexpert"
   raw_train_csv: "train.csv"
   raw_valid_csv: "valid.csv"
-  train_split_csv: "train_split.csv"
-  valid_split_csv: "valid_split.csv"
-  conformal_split_csv: "conformal_split.csv"
-  test_split_csv: "test_split.csv"
+  train_split_csv: "csv_files/train_split.csv"
+  valid_split_csv: "csv_files/valid_split.csv"
+  conformal_split_csv: "csv_files/conformal_split.csv"
+  test_split_csv: "csv_files/test_split.csv"
   train_images_dir: "train"
   valid_images_dir: "valid"
-  conformal_split_size: 800
+
+  # Stratified split ratios (combines train.csv + valid.csv)
+  split_ratios:
+    train: 0.70      # 70% for training
+    validation: 0.10 # 10% for validation (early stopping)
+    conformal: 0.10  # 10% for conformal calibration
+    test: 0.10       # 10% for final test evaluation
 
 # Training dataloader settings
 training:
@@ -44,9 +50,9 @@ trainer:
   callbacks:
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
-        monitor: "val_loss"
-        patience: 100
-        mode: "min"
+        monitor: "val_auroc_mean"
+        patience: 30
+        mode: "max"
         verbose: True
     - class_path: lightning.pytorch.callbacks.LearningRateMonitor
       init_args:
@@ -54,11 +60,11 @@ trainer:
 
 # Checkpoint configuration
 chkpt_callback:
-  monitor: "val_loss"
-  mode: "min"
+  monitor: "val_auroc_mean"
+  mode: "max"
   save_top_k: 1
   dirpath: "/gpfs0/tamyr/users/alonfi/XRay/checkpoints"
-  filename: "densenet-{epoch:02d}-{val_loss:.3f}"
+  filename: "densenet-{epoch:02d}-{val_auroc_mean:.3f}"
 
 # Nested Model configuration matching LightningCLI
 model:
@@ -67,12 +73,12 @@ model:
     lr: 0.001
     min_lr: 1e-6
     w_decay: 0.05
-    task_weights: # calculated from the training set
-      - 0.733 # Atelectasis
-      - 0.813 # Cardiomegaly
-      - 1.000 # Consolidation
-      - 0.388 # Pleural Effusion
-      - 0.956 # Pneumothorax
+    task_weights: # calculated from the new training set (70/10/10/10 split)
+      - 2.242 # Atelectasis 
+      - 3.040 # Cardiomegaly 
+      - 8.464 # Consolidation
+      - 1.742 # Pleural Effusion/or
+      - 6.383 # Pneumothorax 
     model:
       class_path: chest_xray.models.CXRDenseNet
       init_args:
@@ -81,11 +87,15 @@ model:
 
 # Conformal prediction configuration
 conformal:
-  alpha: 0.1  # 1 - alpha = 0.9 (90% confidence level)
+  alpha: 0.1 # 1 - alpha = 0.9 (90% confidence level)
+  use_weights: false  # Enable weighted conformal prediction (balances coverage across imbalanced classes)
+  weighting_scheme: "uniform"  # "inverse_prevalence" (weight rare classes higher) or "uniform"
   calibration_dir: "/gpfs0/tamyr/users/alonfi/XRay/conformal_calibration"
   q_hat_file: "/gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/q_hat.pt"
 
 # Output configuration
 output:
   checkpoint_dir: "/gpfs0/tamyr/users/alonfi/XRay/checkpoints"
+  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/densenet-epoch=39-val_auroc_mean=0.819.ckpt # If set, loads this specific checkpoint. If null, loads latest from checkpoint_dir
   log_dir: "/gpfs0/tamyr/users/alonfi/XRay/logs"
+  results_csv: "csv_files/results.csv"  # CSV output relative to working_dir

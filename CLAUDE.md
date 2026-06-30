@@ -14,14 +14,15 @@ The `chexpert/` directory mirrors the production server structure:
 
 ```
 chexpert/
-├── train.csv              # (Original) Training set metadata
-├── valid.csv              # (Original) Validation set metadata
+├── train.csv              # (Original) Source for train/validation/conformal splits
+├── valid.csv              # (Original) Becomes test_split.csv (held-out test set)
 ├── train_split.csv        # Stratified train set (training only)
 ├── valid_split.csv        # Stratified validation set (validation during training)
-├── conformal_split.csv    # Stratified conformal set (held-out for conformal prediction)
+├── conformal_split.csv    # Stratified conformal set (held-out for conformal calibration)
+├── test_split.csv         # Test set from valid.csv (final evaluation)
 ├── train/                 # Training images organized by patient ID
 │   └── patient*/          # Individual patient folders containing X-ray images
-└── valid/                 # Validation/test images
+└── valid/                 # Test images
     └── patient*/          # Individual patient folders
 ```
 
@@ -37,58 +38,81 @@ All CSVs contain:
 
 ### Dataset Splitting Strategy
 
-Raw `train.csv` and `valid.csv` are split into three stratified sets:
+Raw `train.csv` and `valid.csv` are processed into four stratified sets:
 
-1. **Train Set**: Model training (configurable percentage of non-conformal data, default 80%)
-2. **Validation Set**: Model validation during training (remaining non-conformal data, default 20%)
-3. **Conformal Set**: Held-out data for conformal prediction (size set by `conformal_split_size` in config.yaml)
+1. **Train Set**: Model training (70% of filtered train.csv)
+2. **Validation Set**: Model validation during training (10% of filtered train.csv)
+3. **Conformal Set**: Held-out data for conformal prediction calibration (10% of filtered train.csv)
+4. **Test Set**: Final held-out evaluation set (entire valid.csv, unfiltered)
+
+**Label Filtering:**
+- Train/Validation/Conformal splits: Uncertain labels (-1.0) are **excluded**. Only positive (1.0) and negative (0.0) labels are retained for clean training data.
+- Test split: Uses data from the original dataset splits. Note: `valid.csv` (which becomes the test set) does not contain uncertain labels, so the test set is clean by nature.
 
 **Creating splits:**
 ```bash
-python3 data_split.py
+runai submit split_job python3 data_split.py
 ```
 
 This script:
 - Reads raw train.csv and valid.csv
-- Combines all samples
-- Stratified split: extracts conformal set first (using `conformal_split_size` parameter)
-- Stratified split: divides remaining data 80% train / 20% validation
-- Ensures similar label distributions across all three sets
-- Creates three new CSV files used by data.py
+- Filters train.csv to remove samples with uncertain (-1.0) labels across any pathology
+- Performs stratified splits on filtered train.csv: 70% train / 10% validation / 10% conformal
+- Uses entire valid.csv (unfiltered) as the test set with no modification
+- Ensures similar label distributions across train/validation/conformal sets via Mondrian-style stratification
+- Prints final sample counts for each split
+- Creates four new CSV files used by data.py
 
-The splitting is stratified based on total positive pathologies per sample to maintain label distribution balance.
+All splits are stratified based on total positive pathologies per sample to maintain label distribution balance.
 
 ## Development Workflow
 
-**Local Development → Git → Production Servers**
+**HPC Environment - Login Node vs. Compute Nodes**
 
-1. Build and test all scripts locally in this directory
-2. Commit to git with proper documentation
-3. Push to git repository
-4. Pull on production servers and run training pipeline
+⚠️ **CRITICAL:** The login node is for data transfer and job submission ONLY. Do NOT run Python scripts, training, or computationally intensive operations on the login node. All work must be submitted to compute nodes via `runai`.
+
+1. Edit and commit code on the login node
+2. Push to git repository
+3. Submit training jobs to compute nodes using `runai` (never run `python3 train.py` directly on login node)
+4. Monitor job status with runai commands
 
 ## Quick Start
 
-1. **Create the stratified splits:**
-   ```bash
-   python3 data_split.py
-   ```
-   This generates `train_split.csv`, `valid_split.csv`, and `conformal_split.csv` in the chexpert/ directory.
+**For Code Development (on login node):**
+- Edit and commit scripts to git
+- Run only minimal validation scripts if absolutely necessary
+- Use `runai` to submit all actual training/processing jobs
 
-2. **Run training:**
-   ```bash
-   python3 train.py
-   ```
-   Trains model on train_split.csv, validates on valid_split.csv, and saves checkpoints.
+**For Running on Compute Nodes (via runai):**
 
-3. **Configure for production:**
-   - Update `conformal_split_size` in config.yaml based on your full dataset size
-   - Update `chexpert_dir` path for production servers
-   - The splitting script will automatically scale to handle the full dataset
+1. Create the stratified splits:
+```bash
+runai submit split_job python3 data_split.py
+```
+
+2. Train the model:
+```bash
+runai submit train_job python3 train.py
+```
+
+3. Run conformal prediction (calibration + test evaluation):
+```bash
+runai submit test_job python3 test.py
+```
+
+**Configuration:**
+- Update `conformal_split_size` in config.yaml based on your dataset size
+- Update `chexpert_dir` path if needed
+- The scripts automatically scale to handle the full dataset
 
 ## Key Implementation Notes
 
-- **data.py**: `CXRDataModule` loads from split CSVs (train_split.csv, valid_split.csv, conformal_split.csv)
-- **data.py**: Includes `conformal_dataloader()` method for accessing the held-out conformal set
+- **data.py**: `CXRDataModule` loads from four split CSVs (train_split.csv, valid_split.csv, conformal_split.csv, test_split.csv)
+- **data.py**: Includes `conformal_dataloader()` for conformal calibration and `test_dataloader()` for final evaluation
+- **data.py**: Correctly maps image directories (train/val/conformal use train_img_dir, test uses valid_img_dir)
 - **config.yaml**: Contains `conformal_split_size` parameter (number of samples to reserve for conformal prediction)
-- **data_split.py**: Handles stratified splitting with support for mixed train/valid sources in each split
+- **data_split.py**: Combines train.csv and valid.csv, then splits into train/validation/conformal/test. Filters uncertain -1.0 labels from train/validation/conformal sets only. Test set retains all labels from the split data.
+- **train.py**: Trains on train_split, validates on valid_split
+- **test.py**: Runs inference on test_split and saves predictions to CSV (does not perform calibration)
+- **calculate_conformal_pred.py**: Separate workflow for conformal prediction calibration using conformal_split
+- **test_analyze.py**: Analyzes results from test.py output without requiring re-runs — use for evaluation and visualization after inference is complete

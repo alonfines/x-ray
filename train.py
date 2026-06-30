@@ -1,8 +1,5 @@
-import os
 import yaml
 import torch
-import torch.nn as nn
-import wandb
 import lightning as pl
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor
@@ -11,7 +8,7 @@ from torchmetrics import Accuracy, AUROC
 from typing import Optional
 
 from data import CXRDataModule
-from densenet_model import CXRDenseNet, get_loss_function, calculate_pos_weights
+from densenet_model import CXRDenseNet, get_loss_function
 
 
 class CXRClassifier(pl.LightningModule):
@@ -25,19 +22,12 @@ class CXRClassifier(pl.LightningModule):
             config = yaml.safe_load(f)
 
         self.config = config
-        
+
         # Parse the nested LightningCLI-style config
         model_args = config.get('model', {}).get('init_args', {})
         densenet_args = model_args.get('model', {}).get('init_args', {})
 
-        # Use the 5 standard pathologies specified in the config comments
-        self.pathologies = [
-            'Atelectasis', 
-            'Cardiomegaly', 
-            'Consolidation', 
-            'Pleural Effusion', # CheXpert name for "Effusion"
-            'Pneumothorax'
-        ]
+        self.pathologies = config.get('use_labels', [])
 
         self.num_classes = densenet_args.get('num_classes', len(self.pathologies))
         
@@ -101,18 +91,9 @@ class CXRClassifier(pl.LightningModule):
 
     def _common_step(self, batch, batch_idx):
         images, labels = batch
-        
-        # CHEXPERT UNCERTAINTY HANDLING (U-Zeros Policy)
-        # Map all -1 (uncertain) labels to 0 (negative)
-        # If you prefer U-Ones, change torch.zeros_like to torch.ones_like
-        clean_labels = torch.where(labels == -1, torch.zeros_like(labels), labels)
-        
         logits = self(images)
-        
-        # Calculate loss using the cleaned [0, 1] labels
-        loss = self.criterion(logits, clean_labels)
-        
-        return logits, clean_labels, loss
+        loss = self.criterion(logits, labels)
+        return logits, labels, loss
 
     def training_step(self, batch, batch_idx):
         logits, labels, loss = self._common_step(batch, batch_idx)
@@ -173,10 +154,6 @@ def train():
 
     # Data module & Model
     data_module = CXRDataModule(config_path=config_path)
-    # Ensure data_module uses the 5 classes we want
-    data_module.pathologies = [
-        'Atelectasis', 'Cardiomegaly', 'Consolidation', 'Pleural Effusion', 'Pneumothorax'
-    ]
     model = CXRClassifier(config_path=config_path)
 
     # Setup Loggers
@@ -187,12 +164,19 @@ def train():
         config=config
     )
 
+    # Get EarlyStopping config
+    early_stop_config = {}
+    for callback in trainer_config.get('callbacks', []):
+        if 'EarlyStopping' in callback.get('class_path', ''):
+            early_stop_config = callback.get('init_args', {})
+            break
+
     # Callbacks
     early_stop = EarlyStopping(
-        monitor='val_loss',
-        patience=100,  # From config
-        verbose=True,
-        mode='min'
+        monitor=early_stop_config.get('monitor', 'val_loss'),
+        patience=early_stop_config.get('patience', 30),
+        verbose=early_stop_config.get('verbose', True),
+        mode=early_stop_config.get('mode', 'min')
     )
 
     lr_monitor = LearningRateMonitor(logging_interval='epoch')

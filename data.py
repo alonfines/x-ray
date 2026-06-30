@@ -19,23 +19,17 @@ class CheXpertDataset(Dataset):
                  img_dir: str,
                  pathologies: Optional[List[str]] = None,
                  transform: Optional[tforms.Compose] = None,
-                 data_aug: Optional[tforms.Compose] = None):
-        
+                 data_aug: Optional[tforms.Compose] = None,
+                 clean_uncertain: bool = True):
+
         self.csv_path = csv_path
         self.img_dir = img_dir
         self.transform = transform
         self.data_aug = data_aug
+        self.pathologies = pathologies
+        self.clean_uncertain = clean_uncertain
 
         self.df = pd.read_csv(csv_path)
-
-        if pathologies is None:
-            self.pathologies = [
-                'No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity',
-                'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis',
-                'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture', 'Support Devices'
-            ]
-        else:
-            self.pathologies = pathologies
 
     def __len__(self) -> int:
         return len(self.df)
@@ -45,21 +39,26 @@ class CheXpertDataset(Dataset):
         img_path = row['Path']
         
         if not os.path.isabs(img_path):
-            img_path_clean = img_path.replace('CheXpert-v1.0/train/', '').replace('CheXpert-v1.0-small/valid/', '')
-            full_path = os.path.join(self.img_dir, img_path_clean)
-
-            if not os.path.exists(full_path):
-                parent_dir = os.path.dirname(self.img_dir)
-                alt_dir = os.path.join(parent_dir, 'train' if 'valid' in self.img_dir else 'valid')
-                full_path_alt = os.path.join(alt_dir, img_path_clean)
-                if os.path.exists(full_path_alt):
-                    full_path = full_path_alt
+            # Find the parent directory of self.img_dir (which is the base chexpert_dir)
+            base_dir = os.path.dirname(self.img_dir)
+            
+            # Use the path string itself to determine if it goes to train or valid
+            if 'train/' in img_path:
+                relative_path = img_path.split('train/')[-1]
+                full_path = os.path.join(base_dir, 'train', relative_path)
+            elif 'valid/' in img_path:
+                relative_path = img_path.split('valid/')[-1]
+                full_path = os.path.join(base_dir, 'valid', relative_path)
+            else:
+                # Absolute fallback if neither keyword is in the path
+                full_path = os.path.join(self.img_dir, img_path)
         else:
             full_path = img_path
 
+        # (The rest of your image loading and label logic remains the same)
         img = Image.open(full_path).convert('L') 
         img = np.array(img)
-        img = np.expand_dims(img, axis=0) 
+        img = np.expand_dims(img, axis=0)
 
         if self.transform:
             img = self.transform(img)
@@ -70,12 +69,11 @@ class CheXpertDataset(Dataset):
         labels = []
         for pathology in self.pathologies:
             value = row[pathology]
-            
-            # ==========================================
-            # FIX: Clean BOTH NaN and -1.0 right here!
-            # ==========================================
-            if pd.isna(value) or float(value) == -1.0:
-                labels.append(0.0) 
+
+            if pd.isna(value):
+                labels.append(0.0)
+            elif self.clean_uncertain and float(value) == -1.0:
+                labels.append(0.0)
             else:
                 labels.append(float(value))
 
@@ -163,7 +161,8 @@ class CXRDataModule(pl.LightningDataModule):
                 img_dir=self.valid_img_dir, # Test came from the raw valid.csv, so it uses valid_img_dir!
                 pathologies=self.pathologies,
                 transform=transform,
-                data_aug=None
+                data_aug=None,
+                clean_uncertain=False  # Preserve uncertain (-1.0) labels for test evaluation
             )
 
     def train_dataloader(self) -> DataLoader:

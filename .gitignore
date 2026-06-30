@@ -1,0 +1,37 @@
+# Model checkpoints
+checkpoints/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+*.csv
+chexpert/
+
+# Logs
+*.log
+wandb/
+
+# Output files
+results.csv
+conformal_calibration/
+csv_files/
