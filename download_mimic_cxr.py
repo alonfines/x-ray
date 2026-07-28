@@ -13,79 +13,87 @@ import time
 import threading
 import argparse
 from pathlib import Path
+from tqdm import tqdm
 
 
-def _monitor_progress(output_dir, total_files):
-    """Monitor download directory and show progress in real-time."""
+def _monitor_progress(output_dir, total_files, initial_file_count):
+    """Monitor download directory and show progress in real-time with tqdm."""
     start_time = time.time()
     prev_size = 0
     prev_time = start_time
     prev_count = 0
 
-    while True:
-        time.sleep(5)  # Update every 5 seconds
+    # Create tqdm progress bar
+    pbar = tqdm(total=total_files, desc="Downloading", unit="file", ncols=100,
+                bar_format='{desc}: {n_fmt}/{total_fmt} [{bar}] {percentage:3.0f}% | {postfix}')
 
-        try:
-            # Count files and total size
-            file_count = 0
-            total_size = 0
-            for root, _, files in os.walk(output_dir):
-                for f in files:
-                    file_path = os.path.join(root, f)
-                    if os.path.exists(file_path):
-                        file_count += 1
-                        total_size += os.path.getsize(file_path)
+    try:
+        while True:
+            time.sleep(2)  # Update every 2 seconds
 
-            if file_count == 0:
-                continue
+            try:
+                # Count files and total size
+                file_count = 0
+                total_size = 0
+                for root, _, files in os.walk(output_dir):
+                    for f in files:
+                        file_path = os.path.join(root, f)
+                        if os.path.exists(file_path):
+                            file_count += 1
+                            total_size += os.path.getsize(file_path)
 
-            elapsed = time.time() - start_time
-            current_time = time.time()
-            time_delta = current_time - prev_time
+                if file_count == 0:
+                    continue
 
-            # Calculate speed and ETA
-            size_delta = total_size - prev_size
-            if time_delta > 0:
-                speed_mbps = (size_delta / (1024 * 1024)) / time_delta
-            else:
-                speed_mbps = 0
+                # Calculate how many NEW files have been downloaded (subtract initial count)
+                newly_downloaded = max(0, file_count - initial_file_count)
 
-            count_delta = file_count - prev_count
-            if count_delta > 0:
-                remaining_files = total_files - file_count
-                files_per_sec = count_delta / time_delta if time_delta > 0 else 0
-                eta_secs = remaining_files / files_per_sec if files_per_sec > 0 else 0
-                eta_str = _format_time(eta_secs)
-            else:
-                eta_str = "calculating..."
+                elapsed = time.time() - start_time
+                current_time = time.time()
+                time_delta = current_time - prev_time
 
-            # Format output
-            percent = (file_count / total_files * 100) if total_files > 0 else 0
-            size_gb = total_size / (1024**3)
-            elapsed_str = _format_time(elapsed)
+                # Calculate speed and ETA
+                size_delta = total_size - prev_size
+                if time_delta > 0:
+                    speed_mbps = (size_delta / (1024 * 1024)) / time_delta
+                else:
+                    speed_mbps = 0
 
-            progress_bar = "█" * int(percent / 2) + "░" * (50 - int(percent / 2))
-            print(
-                f"\r[{progress_bar}] {percent:5.1f}% | "
-                f"Files: {file_count}/{total_files} | "
-                f"Size: {size_gb:.2f}GB | "
-                f"Speed: {speed_mbps:.1f}MB/s | "
-                f"Elapsed: {elapsed_str} | "
-                f"ETA: {eta_str}     ",
-                end="",
-                flush=True,
-            )
+                count_delta = newly_downloaded - prev_count
+                if count_delta > 0:
+                    remaining_files = total_files - newly_downloaded
+                    files_per_sec = count_delta / time_delta if time_delta > 0 else 0
+                    eta_secs = remaining_files / files_per_sec if files_per_sec > 0 else 0
+                    eta_str = _format_time(eta_secs)
+                else:
+                    eta_str = "calculating..."
 
-            prev_size = total_size
-            prev_time = current_time
-            prev_count = file_count
+                # Update progress bar
+                files_to_add = newly_downloaded - prev_count
+                if files_to_add > 0:
+                    pbar.update(files_to_add)
 
-            if file_count >= total_files:
-                break
+                size_gb = total_size / (1024**3)
+                elapsed_str = _format_time(elapsed)
+                postfix = (f"{size_gb:.1f}GB | {speed_mbps:.1f}MB/s | "
+                          f"Elapsed: {elapsed_str} | ETA: {eta_str}")
+                pbar.set_postfix_str(postfix)
 
-        except Exception:
-            # Silently continue on errors (file may be in use, etc.)
-            pass
+                prev_size = total_size
+                prev_time = current_time
+                prev_count = newly_downloaded
+
+                if newly_downloaded >= total_files:
+                    pbar.close()
+                    break
+
+            except Exception as e:
+                # Silently continue on errors (file may be in use, etc.)
+                pass
+    finally:
+        pbar.close()
+
+    print()  # New line after progress bar
 
 
 def _format_time(seconds):
@@ -220,9 +228,7 @@ def main():
                     filtered_files.append(file_path)
             all_files = filtered_files
             print(f"Filtered to subsets: {', '.join(sorted(SUBSETS))}")
-            print(f"Total files in selected subsets: {len(all_files)}")
-            if all_files:
-                print(f"Sample from filelist: {all_files[0]}\n")
+            print(f"Total files in selected subsets: {len(all_files)}\n")
 
         if SKIP_EXISTING:
             # Build set of existing files (faster than checking each file individually)
@@ -262,9 +268,6 @@ def main():
                             rel_path = rel_path_full
 
                         existing_files.add(rel_path)
-                        if scan_count <= 3:  # Show first 3 files for debugging
-                            print(f"  Sample full: {rel_path_full}")
-                            print(f"  Sample normalized: {rel_path}")
 
                 print(f"Found {len(existing_files)} existing files")
 
@@ -301,10 +304,13 @@ def main():
 
         print(f"Total files to download: {total_files}\n")
 
+        # Count current files for progress tracking
+        current_file_count = len(existing_files)
+
         # Track download progress in background
         progress_thread = threading.Thread(
             target=_monitor_progress,
-            args=(OUTPUT_DIR, total_files),
+            args=(OUTPUT_DIR, total_files, current_file_count),
             daemon=True,
         )
         progress_thread.start()
