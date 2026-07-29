@@ -10,6 +10,15 @@ from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from typing import Optional, Tuple, List
 
+# All 13 CheXpert pathologies (excluding No Finding)
+ALL_CHEXPERT_LABELS = [
+    "Enlarged Cardiomediastinum", "Cardiomegaly", "Lung Opacity", "Lung Lesion",
+    "Edema", "Consolidation", "Pneumonia", "Atelectasis", "Pneumothorax",
+    "Pleural Effusion", "Pleural Other", "Fracture", "Support Devices"
+]
+NO_FINDING_COL = "No Finding"
+SUPPORT_DEVICES_COL = "Support Devices"
+
 
 class CheXpertDataset(Dataset):
     """Custom PyTorch Dataset for CheXpert chest X-ray images."""
@@ -20,7 +29,8 @@ class CheXpertDataset(Dataset):
                  pathologies: Optional[List[str]] = None,
                  transform: Optional[tforms.Compose] = None,
                  data_aug: Optional[tforms.Compose] = None,
-                 clean_uncertain: bool = True):
+                 clean_uncertain: bool = True,
+                 no_finding_preprocessing: bool = False):
 
         self.csv_path = csv_path
         self.img_dir = img_dir
@@ -28,6 +38,7 @@ class CheXpertDataset(Dataset):
         self.data_aug = data_aug
         self.pathologies = pathologies
         self.clean_uncertain = clean_uncertain
+        self.no_finding_preprocessing = no_finding_preprocessing
 
         self.df = pd.read_csv(csv_path)
 
@@ -79,6 +90,20 @@ class CheXpertDataset(Dataset):
 
         labels = torch.tensor(labels, dtype=torch.float32)
 
+        # No Finding preprocessing: if No Finding is positive, zero all labels except Support Devices
+        if self.no_finding_preprocessing:
+            no_finding_val = row.get(NO_FINDING_COL, 0.0)
+            if not pd.isna(no_finding_val) and float(no_finding_val) == 1.0:
+                # Preserve Support Devices label, zero all others
+                if SUPPORT_DEVICES_COL in self.pathologies:
+                    support_idx = self.pathologies.index(SUPPORT_DEVICES_COL)
+                    support_val = labels[support_idx].item()
+                    labels = torch.zeros_like(labels)
+                    labels[support_idx] = support_val
+                else:
+                    # If Support Devices not in pathologies, just zero all
+                    labels = torch.zeros_like(labels)
+
         return img, labels
 
 
@@ -91,17 +116,25 @@ class CXRDataModule(pl.LightningDataModule):
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
 
-        self.pathologies = config.get('use_labels', None)
+        # Determine which labels to use and whether to apply No Finding preprocessing
+        use_all_labels = config.get('use_all_labels', False)
+        if use_all_labels:
+            self.pathologies = ALL_CHEXPERT_LABELS
+            self.no_finding_preprocessing = True
+        else:
+            self.pathologies = config.get('use_labels', None)
+            self.no_finding_preprocessing = False
+
         data_config = config.get('data', {})
         self.working_dir = data_config.get('working_dir', os.getcwd())
         self.chexpert_dir = data_config.get('chexpert_dir')
-        
+
         # Define all four CSV paths
         self.train_csv = os.path.join(self.working_dir, data_config.get('train_split_csv', 'train_split.csv'))
         self.valid_csv = os.path.join(self.working_dir, data_config.get('valid_split_csv', 'valid_split.csv'))
         self.conformal_csv = os.path.join(self.working_dir, data_config.get('conformal_split_csv', 'conformal_split.csv'))
         self.test_csv = os.path.join(self.working_dir, data_config.get('test_split_csv', 'test_split.csv'))
-        
+
         self.train_img_dir = os.path.join(self.chexpert_dir, data_config.get('train_images_dir', 'train'))
         self.valid_img_dir = os.path.join(self.chexpert_dir, data_config.get('valid_images_dir', 'valid'))
 
@@ -133,7 +166,8 @@ class CXRDataModule(pl.LightningDataModule):
                 img_dir=self.train_img_dir,
                 pathologies=self.pathologies,
                 transform=transform,
-                data_aug=augment
+                data_aug=augment,
+                no_finding_preprocessing=self.no_finding_preprocessing
             )
 
         if stage in [None, 'fit', 'validate']:
@@ -142,7 +176,8 @@ class CXRDataModule(pl.LightningDataModule):
                 img_dir=self.train_img_dir, # Valid was split from train.csv, so it uses train_img_dir!
                 pathologies=self.pathologies,
                 transform=transform,
-                data_aug=None
+                data_aug=None,
+                no_finding_preprocessing=self.no_finding_preprocessing
             )
 
         if stage in [None, 'fit', 'validate', 'test']:
@@ -151,7 +186,8 @@ class CXRDataModule(pl.LightningDataModule):
                 img_dir=self.train_img_dir, # Conformal was split from train.csv, so it uses train_img_dir!
                 pathologies=self.pathologies,
                 transform=transform,
-                data_aug=None
+                data_aug=None,
+                no_finding_preprocessing=self.no_finding_preprocessing
             )
 
         # Added setup for the purely isolated Test set
@@ -162,7 +198,8 @@ class CXRDataModule(pl.LightningDataModule):
                 pathologies=self.pathologies,
                 transform=transform,
                 data_aug=None,
-                clean_uncertain=False  # Preserve uncertain (-1.0) labels for test evaluation
+                clean_uncertain=False,  # Preserve uncertain (-1.0) labels for test evaluation
+                no_finding_preprocessing=self.no_finding_preprocessing
             )
 
     def train_dataloader(self) -> DataLoader:

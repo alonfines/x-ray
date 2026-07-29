@@ -6,6 +6,13 @@ import torch.nn.functional as F
 import torchxrayvision as xrv
 from torchxrayvision.models import DenseNet
 
+# Import label constants for consistency with data.py
+ALL_CHEXPERT_LABELS = [
+    "Enlarged Cardiomediastinum", "Cardiomegaly", "Lung Opacity", "Lung Lesion",
+    "Edema", "Consolidation", "Pneumonia", "Atelectasis", "Pneumothorax",
+    "Pleural Effusion", "Pleural Other", "Fracture", "Support Devices"
+]
+
 
 class CXRDenseNet(nn.Module):
     """DenseNet classifier for multi-label chest X-ray classification."""
@@ -16,7 +23,7 @@ class CXRDenseNet(nn.Module):
 
         Args:
             config_path: Path to config.yaml file
-            num_classes: Number of output classes (if None, derived from use_labels in config)
+            num_classes: Number of output classes (if None, derived from config)
         """
         super().__init__()
 
@@ -26,8 +33,12 @@ class CXRDenseNet(nn.Module):
 
         # Determine number of classes
         if num_classes is None:
-            use_labels = config.get('use_labels', [])
-            self.num_classes = len(use_labels) if use_labels else 14
+            use_all_labels = config.get('use_all_labels', False)
+            if use_all_labels:
+                self.num_classes = len(ALL_CHEXPERT_LABELS)  # 13
+            else:
+                use_labels = config.get('use_labels', [])
+                self.num_classes = len(use_labels) if use_labels else 13
         else:
             self.num_classes = num_classes
 

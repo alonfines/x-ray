@@ -8,18 +8,22 @@ use_labels:
   - Pleural Effusion
   - Pneumothorax
 
+# Use all 13 CheXpert labels (excluding No Finding)
+# When true: predicts all pathologies and applies No Finding preprocessing
+# When false: uses use_labels above for 5-label mode
+use_all_labels: false
+
 # Data configuration (Matches data.py expectations)
 data:
   working_dir: "/gpfs0/tamyr/users/alonfi/XRay"
-  chexpert_dir: "/gpfs0/tamyr/projects/data/chest_xray/chexpert"
-  raw_train_csv: "train.csv"
-  raw_valid_csv: "valid.csv"
+  mimic_cxr_dir: "/gpfs0/tamyr/projects/data/MIMIC-CXR"
+  raw_csv: "/gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.0.0-chexpert.csv"
+  metadata_csv: "/gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.0.0-metadata.csv.gz"
   train_split_csv: "csv_files/train_split.csv"
   valid_split_csv: "csv_files/valid_split.csv"
   conformal_split_csv: "csv_files/conformal_split.csv"
   test_split_csv: "csv_files/test_split.csv"
-  train_images_dir: "train"
-  valid_images_dir: "valid"
+  images_dir: "/gpfs0/tamyr/projects/data/MIMIC-CXR/files"
 
   # Stratified split ratios (combines train.csv + valid.csv)
   split_ratios:
@@ -83,7 +87,6 @@ model:
       class_path: chest_xray.models.CXRDenseNet
       init_args:
         imagenet_pretrained: True
-        num_classes: 5
 
 # Conformal prediction configuration
 conformal:
@@ -96,6 +99,6 @@ conformal:
 # Output configuration
 output:
   checkpoint_dir: "/gpfs0/tamyr/users/alonfi/XRay/checkpoints"
-  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/densenet-epoch=39-val_auroc_mean=0.819.ckpt # If set, loads this specific checkpoint. If null, loads latest from checkpoint_dir
+  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/densenet-5labels-epoch=39-val_auroc_mean=0.819.ckpt # If set, loads this specific checkpoint. If null, loads latest from checkpoint_dir
   log_dir: "/gpfs0/tamyr/users/alonfi/XRay/logs"
   results_csv: "csv_files/results.csv"  # CSV output relative to working_dir

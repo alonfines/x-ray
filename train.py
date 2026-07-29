@@ -7,7 +7,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from torchmetrics import Accuracy, AUROC
 from typing import Optional
 
-from data import CXRDataModule
+from data import CXRDataModule, ALL_CHEXPERT_LABELS
 from densenet_model import CXRDenseNet, get_loss_function
 
 
@@ -27,9 +27,15 @@ class CXRClassifier(pl.LightningModule):
         model_args = config.get('model', {}).get('init_args', {})
         densenet_args = model_args.get('model', {}).get('init_args', {})
 
-        self.pathologies = config.get('use_labels', [])
+        # Determine which labels to use based on use_all_labels config
+        use_all_labels = config.get('use_all_labels', False)
+        if use_all_labels:
+            self.pathologies = ALL_CHEXPERT_LABELS
+        else:
+            self.pathologies = config.get('use_labels', [])
 
-        self.num_classes = densenet_args.get('num_classes', len(self.pathologies))
+        # Always derive num_classes from len(pathologies), never from config
+        self.num_classes = len(self.pathologies)
         
         # Hyperparameters from config
         self.learning_rate = model_args.get('lr', 0.001)
@@ -52,13 +58,19 @@ class CXRClassifier(pl.LightningModule):
         self.example_input_array = torch.randn(1, 1, 224, 224)
 
     def setup(self, stage: Optional[str] = None):
-        """Setup loss function using hardcoded config weights or dynamic calculation."""
+        """Setup loss function using config weights (with validation) or unweighted fallback."""
         if self.criterion is None:
             if self.task_weights:
-                # Use the hardcoded weights from the config YAML
-                print(f"Using task weights from config: {self.task_weights}")
-                pos_weight = torch.tensor(self.task_weights, dtype=torch.float32)
-                self.criterion = get_loss_function(weighted=True, pos_weight=pos_weight)
+                # Validate task_weights match num_classes
+                if len(self.task_weights) != self.num_classes:
+                    print(f"WARNING: task_weights length ({len(self.task_weights)}) != num_classes ({self.num_classes})")
+                    print(f"Falling back to unweighted BCEWithLogitsLoss")
+                    self.criterion = get_loss_function(weighted=False)
+                else:
+                    # Use the weights from the config YAML
+                    print(f"Using task weights from config: {self.task_weights}")
+                    pos_weight = torch.tensor(self.task_weights, dtype=torch.float32)
+                    self.criterion = get_loss_function(weighted=True, pos_weight=pos_weight)
             else:
                 # Fallback to unweighted if not provided
                 self.criterion = get_loss_function(weighted=False)
@@ -181,9 +193,16 @@ def train():
 
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
 
+    # Dynamically set checkpoint filename based on label mode
+    use_all_labels = config.get('use_all_labels', False)
+    label_suffix = 'alllabels' if use_all_labels else '5labels'
+    base_filename = chkpt_config.get('filename', 'densenet-{epoch:02d}-{val_loss:.3f}')
+    # Insert label suffix after 'densenet-' prefix
+    checkpoint_filename = base_filename.replace('densenet-', f'densenet-{label_suffix}-', 1)
+
     checkpoint = ModelCheckpoint(
         dirpath=chkpt_config.get('dirpath', './checkpoints'),
-        filename=chkpt_config.get('filename', 'densenet-{epoch:02d}-{val_loss:.3f}'),
+        filename=checkpoint_filename,
         monitor=chkpt_config.get('monitor', 'val_loss'),
         mode=chkpt_config.get('mode', 'min'),
         save_top_k=chkpt_config.get('save_top_k', 1)
