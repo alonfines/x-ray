@@ -16,84 +16,58 @@ from pathlib import Path
 from tqdm import tqdm
 
 
-def _monitor_progress(output_dir, total_files, initial_file_count):
-    """Monitor download directory and show progress in real-time with tqdm."""
+def _monitor_progress(manifest_file, total_files, initial_manifest_lines):
+    """Monitor manifest file line count and show progress in real-time with tqdm."""
     start_time = time.time()
-    prev_size = 0
-    prev_time = start_time
     prev_count = 0
 
-    # Create tqdm progress bar
     pbar = tqdm(total=total_files, desc="Downloading", unit="file", ncols=100,
                 bar_format='{desc}: {n_fmt}/{total_fmt} [{bar}] {percentage:3.0f}% | {postfix}')
 
     try:
         while True:
-            time.sleep(2)  # Update every 2 seconds
+            time.sleep(3)
 
             try:
-                # Count files and total size
-                file_count = 0
-                total_size = 0
-                for root, _, files in os.walk(output_dir):
-                    for f in files:
-                        file_path = os.path.join(root, f)
-                        if os.path.exists(file_path):
-                            file_count += 1
-                            total_size += os.path.getsize(file_path)
+                # Count lines in manifest (cheap I/O vs walking entire directory)
+                if os.path.exists(manifest_file):
+                    with open(manifest_file) as f:
+                        current_lines = sum(1 for _ in f)
+                else:
+                    current_lines = 0
 
-                if file_count == 0:
-                    continue
-
-                # Calculate how many NEW files have been downloaded (subtract initial count)
-                newly_downloaded = max(0, file_count - initial_file_count)
+                newly_downloaded = max(0, current_lines - initial_manifest_lines)
 
                 elapsed = time.time() - start_time
-                current_time = time.time()
-                time_delta = current_time - prev_time
+                elapsed_str = _format_time(elapsed)
 
-                # Calculate speed and ETA
-                size_delta = total_size - prev_size
-                if time_delta > 0:
-                    speed_mbps = (size_delta / (1024 * 1024)) / time_delta
-                else:
-                    speed_mbps = 0
-
-                count_delta = newly_downloaded - prev_count
-                if count_delta > 0:
-                    remaining_files = total_files - newly_downloaded
-                    files_per_sec = count_delta / time_delta if time_delta > 0 else 0
-                    eta_secs = remaining_files / files_per_sec if files_per_sec > 0 else 0
-                    eta_str = _format_time(eta_secs)
-                else:
-                    eta_str = "calculating..."
-
-                # Update progress bar
                 files_to_add = newly_downloaded - prev_count
                 if files_to_add > 0:
                     pbar.update(files_to_add)
 
-                size_gb = total_size / (1024**3)
-                elapsed_str = _format_time(elapsed)
-                postfix = (f"{size_gb:.1f}GB | {speed_mbps:.1f}MB/s | "
-                          f"Elapsed: {elapsed_str} | ETA: {eta_str}")
+                if prev_count > 0 and elapsed > 0:
+                    files_per_sec = newly_downloaded / elapsed
+                    remaining = total_files - newly_downloaded
+                    eta_secs = remaining / files_per_sec if files_per_sec > 0 else 0
+                    eta_str = _format_time(eta_secs)
+                else:
+                    eta_str = "calculating..."
+
+                postfix = f"Elapsed: {elapsed_str} | ETA: {eta_str}"
                 pbar.set_postfix_str(postfix)
 
-                prev_size = total_size
-                prev_time = current_time
                 prev_count = newly_downloaded
 
                 if newly_downloaded >= total_files:
                     pbar.close()
                     break
 
-            except Exception as e:
-                # Silently continue on errors (file may be in use, etc.)
+            except Exception:
                 pass
     finally:
         pbar.close()
 
-    print()  # New line after progress bar
+    print()
 
 
 def _format_time(seconds):
@@ -136,6 +110,12 @@ def main():
         type=bool,
         default=True,
         help="Skip files that already exist",
+    )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        default=False,
+        help="Verify manifest against disk (rescan directory to rebuild manifest)",
     )
     args = parser.parse_args()
 
@@ -212,12 +192,6 @@ def main():
         with open(list_file) as f:
             all_files = [line.strip() for line in f if line.strip()]
 
-        # Extract just filenames for fast matching against flat-downloaded files
-        filenames_only = {}  # maps "filename.jpg" -> full_path
-        for file_path in all_files:
-            filename = file_path.split("/")[-1]  # Extract just the filename
-            filenames_only[filename] = file_path
-
         # Filter by subset if specified
         if SUBSETS:
             filtered_files = []
@@ -230,66 +204,38 @@ def main():
             print(f"Filtered to subsets: {', '.join(sorted(SUBSETS))}")
             print(f"Total files in selected subsets: {len(all_files)}\n")
 
-        if SKIP_EXISTING:
-            # Build set of existing files (faster than checking each file individually)
-            print("Scanning existing files...")
+        manifest_file = Path(OUTPUT_DIR) / ".downloaded_manifest"
+
+        if args.verify:
+            # Rebuild manifest from disk scan
+            print("Verifying: scanning disk to rebuild manifest...")
             existing_files = set()
-            manifest_file = Path(OUTPUT_DIR) / ".downloaded_manifest"
-
-            # Try to load from manifest first (faster on restarts)
-            if manifest_file.exists():
-                print(f"Loading existing files from manifest...")
-                try:
-                    existing_files = set(manifest_file.read_text().splitlines())
-                    print(f"Loaded {len(existing_files)} files from manifest")
-                except Exception as e:
-                    print(f"Warning: Failed to load manifest ({e}), rescanning...")
-                    existing_files = set()
-
-            # If manifest didn't work or doesn't exist, scan directory
-            if not existing_files and os.path.exists(OUTPUT_DIR):
-                print(f"Scanning {OUTPUT_DIR} for existing files...")
-                output_path = Path(OUTPUT_DIR)
-                # Use rglob for faster traversal (recursive glob is faster than os.walk)
-                scan_count = 0
-                for file_path in output_path.rglob("*"):
-                    if file_path.is_file():
-                        scan_count += 1
-                        # Store relative path matching the format in file list
-                        # File list has paths like: "files/p10/..."
-                        # But wget creates: "mimic-cxr-jpg/2.1.0/files/p10/..."
-                        # So we extract everything from "files/" onward
-                        rel_path_full = file_path.relative_to(output_path).as_posix()
-
-                        # Find "files/" in the path and use everything from there
+            output_path = Path(OUTPUT_DIR)
+            if output_path.exists():
+                for fp in output_path.rglob("*"):
+                    if fp.is_file():
+                        rel_path_full = fp.relative_to(output_path).as_posix()
                         if "/files/" in rel_path_full:
                             rel_path = rel_path_full[rel_path_full.index("/files/") + 1:]
                         else:
                             rel_path = rel_path_full
-
                         existing_files.add(rel_path)
+            manifest_file.write_text('\n'.join(sorted(existing_files)))
+            print(f"Rebuilt manifest with {len(existing_files)} files")
 
-                print(f"Found {len(existing_files)} existing files")
-
-                # Save manifest for faster restarts
-                if existing_files:
-                    try:
-                        manifest_file.write_text('\n'.join(sorted(existing_files)))
-                    except Exception as e:
-                        print(f"Warning: Failed to save manifest ({e})")
+        if SKIP_EXISTING:
+            # Load manifest (deduplicated)
+            existing_files = set()
+            if manifest_file.exists():
+                print("Loading manifest...")
+                existing_files = set(line for line in manifest_file.read_text().splitlines() if line)
+                print(f"Manifest: {len(existing_files)} files already downloaded")
 
             # Filter to only pending files
-            # Check both full path match and filename-only match (for old flat downloads)
-            pending_files = []
-            for f in all_files:
-                filename = f.split("/")[-1]  # Extract just the filename
-                # File is downloaded if either full path or just filename exists
-                if f not in existing_files and filename not in existing_files:
-                    pending_files.append(f)
+            pending_files = [f for f in all_files if f not in existing_files]
 
             if pending_files:
                 print(f"Total files: {len(all_files)}, Already downloaded: {len(all_files) - len(pending_files)}, Pending: {len(pending_files)}")
-                # Write pending files to temp file for download
                 with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
                     list_file = f.name
                     for file_path in pending_files:
@@ -304,58 +250,46 @@ def main():
 
         print(f"Total files to download: {total_files}\n")
 
-        # Count current files for progress tracking
-        current_file_count = len(existing_files)
+        # Count current manifest lines for progress tracking
+        initial_manifest_lines = 0
+        if manifest_file.exists():
+            with open(manifest_file) as f:
+                initial_manifest_lines = sum(1 for _ in f)
 
         # Track download progress in background
         progress_thread = threading.Thread(
             target=_monitor_progress,
-            args=(OUTPUT_DIR, total_files, current_file_count),
+            args=(str(manifest_file), total_files, initial_manifest_lines),
             daemon=True,
         )
         progress_thread.start()
 
-        # Step 2: Download all files in parallel using wget + xargs
+        # Step 2: Download files in parallel
+        # Each file appends to manifest ONLY on successful wget (exit code 0)
         print(f"Downloading files (parallel with {PARALLEL_JOBS} jobs)...\n")
-        cmd_download = f"""
-        cat {list_file} | xargs -P {PARALLEL_JOBS} -I {{}} wget \
-          --progress=dot:giga \
-          --user {PHYSIONET_USERNAME} \
-          --password {PHYSIONET_PASSWORD} \
-          --continue \
-          -P {OUTPUT_DIR} \
-          {BASE_URL}{{}} 2>&1
-        """
+        cmd_download = (
+            f"cat {list_file} | xargs -P {PARALLEL_JOBS} -I {{}} sh -c '"
+            f"wget --quiet "
+            f"--user {PHYSIONET_USERNAME} "
+            f"--password {PHYSIONET_PASSWORD} "
+            f"--continue "
+            f"--cut-dirs=3 "
+            f"-P {OUTPUT_DIR} "
+            f"{BASE_URL}{{}} 2>/dev/null "
+            f"&& echo {{}} >> {manifest_file}"
+            f"'"
+        )
 
         result = subprocess.run(cmd_download, shell=True)
 
-        # Wait a bit for final progress update
-        time.sleep(2)
+        # Wait for final progress update
+        time.sleep(3)
 
         if result.returncode == 0:
             print("\n✓ Download completed successfully!")
-            # Update manifest for next run
-            if SKIP_EXISTING:
-                manifest_file = Path(OUTPUT_DIR) / ".downloaded_manifest"
-                try:
-                    output_path = Path(OUTPUT_DIR)
-                    new_files = set()
-                    for file_path in output_path.rglob("*"):
-                        if file_path.is_file():
-                            rel_path_full = file_path.relative_to(output_path).as_posix()
-                            # Normalize paths to match filelist format
-                            if "/files/" in rel_path_full:
-                                rel_path = rel_path_full[rel_path_full.index("/files/") + 1:]
-                            else:
-                                rel_path = rel_path_full
-                            new_files.add(rel_path)
-                    manifest_file.write_text('\n'.join(sorted(new_files)))
-                    print(f"Updated manifest with {len(new_files)} total files")
-                except Exception as e:
-                    print(f"Warning: Failed to update manifest ({e})")
         else:
-            print(f"\n✗ Download failed with return code: {result.returncode}")
-            sys.exit(1)
+            print(f"\n⚠ Some downloads may have failed (return code: {result.returncode})")
+            print("Re-run the script to retry failed files.")
 
     finally:
         # Clean up temp file (but keep cache)
