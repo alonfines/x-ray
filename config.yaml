@@ -11,19 +11,23 @@ use_labels:
 # Use all 13 CheXpert labels (excluding No Finding)
 # When true: predicts all pathologies and applies No Finding preprocessing
 # When false: uses use_labels above for 5-label mode
-use_all_labels: false
+use_all_labels: True
+
+# Loss configuration
+# type: "bce" (BCEWithLogitsLoss, default) or "auc_margin" (AUC Margin Loss from Yuan et al. 2021)
+loss:
+  type: "auc_margin"
+  auc_margin:
+    margin: 1.0  # margin parameter m (paper tunes from {0.3, 0.5, 0.7, 1.0})
 
 # Data configuration (Matches data.py expectations)
 data:
   working_dir: "/gpfs0/tamyr/users/alonfi/XRay"
-  mimic_cxr_dir: "/gpfs0/tamyr/projects/data/MIMIC-CXR"
-  raw_csv: "/gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.0.0-chexpert.csv"
-  metadata_csv: "/gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.0.0-metadata.csv.gz"
+  chexpert_dir: "/gpfs0/tamyr/projects/data/chest_xray/chexpert"
   train_split_csv: "csv_files/train_split.csv"
   valid_split_csv: "csv_files/valid_split.csv"
   conformal_split_csv: "csv_files/conformal_split.csv"
   test_split_csv: "csv_files/test_split.csv"
-  images_dir: "/gpfs0/tamyr/projects/data/MIMIC-CXR/files"
 
   # Stratified split ratios (combines train.csv + valid.csv)
   split_ratios:
@@ -99,6 +103,6 @@ conformal:
 # Output configuration
 output:
   checkpoint_dir: "/gpfs0/tamyr/users/alonfi/XRay/checkpoints"
-  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/densenet-5labels-epoch=39-val_auroc_mean=0.819.ckpt # If set, loads this specific checkpoint. If null, loads latest from checkpoint_dir
+  checkpoint_path: "/gpfs0/tamyr/users/alonfi/XRay/checkpoints/densenet-alllabels-bce-epoch=39-val_auroc_mean=0.774.ckpt" # If set, loads this specific checkpoint. If null, loads latest from checkpoint_dir
   log_dir: "/gpfs0/tamyr/users/alonfi/XRay/logs"
   results_csv: "csv_files/results.csv"  # CSV output relative to working_dir

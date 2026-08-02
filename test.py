@@ -4,8 +4,9 @@ import torch
 import pandas as pd
 from pathlib import Path
 from train import CXRClassifier
-from data import CXRDataModule
+from data import CXRDataModule, ALL_CHEXPERT_LABELS
 from tqdm import tqdm
+from sklearn.metrics import roc_auc_score
 
 def save_results_to_csv(predictions: torch.Tensor, true_labels: torch.Tensor, pathologies: list, csv_path: str) -> None:
     """Save model predictions and true labels to CSV."""
@@ -80,9 +81,10 @@ def test_inference(config_path: str = "config.yaml"):
     print("\n[2] Loading test data...")
     data_module = CXRDataModule(config_path=config_path, num_workers=4)
     data_module.setup(stage='test')
-    print(f"  ✓ Test dataloader read›y")
+    print(f"  ✓ Test dataloader ready")
 
-    pathologies = config.get('use_labels', [])
+    use_all_labels = config.get('use_all_labels', False)
+    pathologies = ALL_CHEXPERT_LABELS if use_all_labels else config.get('use_labels', [])
 
     print("\n[3] Running inference on test set...")
     test_loader = data_module.test_dataloader()
@@ -117,6 +119,28 @@ def test_inference(config_path: str = "config.yaml"):
     results_csv = output_config.get('results_csv', 'results.csv')
     csv_path = os.path.join(working_dir, results_csv)
     save_results_to_csv(all_predictions, all_true_labels, pathologies, csv_path)
+
+    # Compute and print AUC per label
+    print("\n[5] AUC Results:")
+    print("-" * 45)
+    predictions_np = all_predictions.numpy()
+    true_labels_np = all_true_labels.numpy()
+    aucs = []
+    for i, pathology in enumerate(pathologies):
+        # Filter out uncertain (-1.0) labels for AUC computation
+        mask = true_labels_np[:, i] >= 0
+        y_true = true_labels_np[mask, i]
+        y_pred = predictions_np[mask, i]
+        try:
+            auc = roc_auc_score(y_true, y_pred)
+            aucs.append(auc)
+            print(f"  {pathology:<35} {auc:.4f}  (n={mask.sum()})")
+        except ValueError:
+            print(f"  {pathology:<35} N/A (single class)")
+    if aucs:
+        mean_auc = sum(aucs) / len(aucs)
+        print("-" * 45)
+        print(f"  {'Mean AUC':<35} {mean_auc:.4f}")
 
     print("\n✅ Test inference complete!")
 

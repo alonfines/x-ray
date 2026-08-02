@@ -47,7 +47,7 @@ Raw `train.csv` and `valid.csv` are processed into four stratified sets:
 
 **Label Filtering:**
 - Train/Validation/Conformal splits: Uncertain labels (-1.0) are **excluded**. Only positive (1.0) and negative (0.0) labels are retained for clean training data.
-- Test split: Uses data from the original dataset splits. Note: `valid.csv` (which becomes the test set) does not contain uncertain labels, so the test set is clean by nature.
+- Test split: Uses data from the original dataset splits. Note: the test set **does** contain uncertain (-1.0) labels. These are preserved at load time (`clean_uncertain=False`) and filtered out per-pathology when computing AUC.
 
 **Creating splits:**
 ```bash
@@ -111,8 +111,11 @@ runai submit test_job python3 test.py
 - **data.py**: Includes `conformal_dataloader()` for conformal calibration and `test_dataloader()` for final evaluation
 - **data.py**: Correctly maps image directories (train/val/conformal use train_img_dir, test uses valid_img_dir)
 - **config.yaml**: Contains `conformal_split_size` parameter (number of samples to reserve for conformal prediction)
-- **data_split.py**: Combines train.csv and valid.csv, then splits into train/validation/conformal/test. Filters uncertain -1.0 labels from train/validation/conformal sets only. Test set retains all labels from the split data.
-- **train.py**: Trains on train_split, validates on valid_split
-- **test.py**: Runs inference on test_split and saves predictions to CSV (does not perform calibration)
+- **data_split.py**: Combines train.csv and valid.csv, then splits into train/validation/conformal/test. Filters uncertain -1.0 labels from train/validation/conformal sets only. Test set retains all labels (including -1.0 uncertain) from the split data.
+- **config.yaml**: `use_all_labels: True` enables 13-label mode (all CheXpert pathologies excluding No Finding) with No Finding preprocessing. When `False`, uses the 5 labels listed in `use_labels`.
+- **config.yaml**: `loss.type` selects the training loss: `"bce"` (default, BCEWithLogitsLoss with optional task_weights) or `"auc_margin"` (AUC Margin Loss from Yuan et al. 2021, arXiv:2012.03173). AUC Margin Loss directly optimizes AUC via a min-max surrogate with learnable primal-dual parameters (a, b, α per label). Margin `m` is tunable via `loss.auc_margin.margin` (paper tunes from {0.3, 0.5, 0.7, 1.0}). Imratio (class priors) is computed automatically from the training CSV.
+- **densenet_model.py**: Contains `AUCMarginLoss` class implementing equation (8) from the paper, and `get_loss_function()` factory that returns the configured loss.
+- **train.py**: Trains on train_split, validates on valid_split. When using AUC Margin Loss, includes loss parameters (a, b, α) in the optimizer, applies gradient ascent on α via hook, and projects α ≥ 0 after each step.
+- **test.py**: Runs inference on test_split, saves predictions to CSV, and prints per-label AUC (filtering out uncertain labels). Does not perform calibration.
 - **calculate_conformal_pred.py**: Separate workflow for conformal prediction calibration using conformal_split
 - **test_analyze.py**: Analyzes results from test.py output without requiring re-runs — use for evaluation and visualization after inference is complete

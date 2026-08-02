@@ -127,7 +127,8 @@ class CXRDataModule(pl.LightningDataModule):
 
         data_config = config.get('data', {})
         self.working_dir = data_config.get('working_dir', os.getcwd())
-        self.chexpert_dir = data_config.get('chexpert_dir')
+        # Support both 'chexpert_dir' and 'mimic_cxr_dir' keys for backward compatibility
+        self.chexpert_dir = data_config.get('chexpert_dir') or data_config.get('mimic_cxr_dir')
 
         # Define all four CSV paths
         self.train_csv = os.path.join(self.working_dir, data_config.get('train_split_csv', 'train_split.csv'))

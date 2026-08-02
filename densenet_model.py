@@ -58,25 +58,77 @@ class CXRDenseNet(nn.Module):
         return self.model(x)
 
 
-def get_loss_function(weighted: bool = False, pos_weight: torch.Tensor = None) -> nn.Module:
+class AUCMarginLoss(nn.Module):
+    """
+    AUC Margin Loss from Yuan et al. (2021).
+    "Large-scale Robust Deep AUC Maximization" (arXiv:2012.03173)
+
+    Implements the min-max surrogate loss (equation 8) for multi-label classification.
+    For each label k, maintains learnable parameters (a_k, b_k, alpha_k) where:
+      - a_k: tracks mean prediction on positive samples
+      - b_k: tracks mean prediction on negative samples
+      - alpha_k: dual variable (maximized, constrained to >= 0)
+
+    The model parameters are minimized while alpha is maximized (primal-dual).
+    """
+
+    def __init__(self, num_classes: int, margin: float = 1.0, imratio: list = None):
+        super().__init__()
+        self.margin = margin
+        self.num_classes = num_classes
+
+        # Learnable primal-dual parameters (per class)
+        self.a = nn.Parameter(torch.zeros(num_classes))
+        self.b = nn.Parameter(torch.zeros(num_classes))
+        self.alpha = nn.Parameter(torch.zeros(num_classes))
+
+        # Prior probability p_k = Pr(y_k = 1) per class
+        if imratio is not None:
+            self.register_buffer('p', torch.tensor(imratio, dtype=torch.float32))
+        else:
+            self.register_buffer('p', torch.full((num_classes,), 0.5))
+
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        preds = torch.sigmoid(logits)
+        p = self.p
+
+        # Equation (8): F_M(w, a, b, α; z)
+        # Term 1: (1-p)(pred - a)^2 * y
+        loss = (1 - p) * ((preds - self.a) ** 2) * targets
+        # Term 2: p * (pred - b)^2 * (1-y)
+        loss = loss + p * ((preds - self.b) ** 2) * (1 - targets)
+        # Term 3: -p(1-p) * alpha^2
+        loss = loss - p * (1 - p) * (self.alpha ** 2)
+        # Term 4: 2*alpha * (p(1-p)*m + p*pred*(1-y) - (1-p)*pred*y)
+        loss = loss + 2 * self.alpha * (
+            p * (1 - p) * self.margin
+            + p * preds * (1 - targets)
+            - (1 - p) * preds * targets
+        )
+
+        return loss.mean()
+
+
+def get_loss_function(loss_type: str = 'bce', weighted: bool = False,
+                      pos_weight: torch.Tensor = None, num_classes: int = None,
+                      margin: float = 1.0, imratio: list = None) -> nn.Module:
     """
     Get loss function for multi-label classification.
 
     Args:
-        weighted: If True, use weighted BCEWithLogitsLoss
-        pos_weight: Class weights for imbalanced datasets (shape: [num_classes])
-                   Higher weight for rare positive examples
+        loss_type: 'bce' for BCEWithLogitsLoss, 'auc_margin' for AUC Margin Loss
+        weighted: If True, use weighted BCEWithLogitsLoss (only for 'bce')
+        pos_weight: Class weights for imbalanced datasets (only for 'bce')
+        num_classes: Number of output classes (required for 'auc_margin')
+        margin: Margin parameter m for AUC Margin Loss (only for 'auc_margin')
+        imratio: Prior probability of positive class per label (only for 'auc_margin')
 
     Returns:
-        Loss function (nn.BCEWithLogitsLoss)
-
-    Notes:
-        BCEWithLogitsLoss is ideal for multi-label classification because:
-        - It combines sigmoid and binary cross-entropy for numerical stability
-        - Each of the 14 pathologies is independent (multi-label, not multi-class)
-        - pos_weight helps handle class imbalance in CheXpert dataset
+        Loss function module
     """
-    if weighted and pos_weight is not None:
+    if loss_type == 'auc_margin':
+        return AUCMarginLoss(num_classes=num_classes, margin=margin, imratio=imratio)
+    elif weighted and pos_weight is not None:
         return nn.BCEWithLogitsLoss(pos_weight=pos_weight, reduction='mean')
     else:
         return nn.BCEWithLogitsLoss(reduction='mean')

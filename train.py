@@ -1,5 +1,7 @@
+import os
 import yaml
 import torch
+import pandas as pd
 import lightning as pl
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor
@@ -8,7 +10,7 @@ from torchmetrics import Accuracy, AUROC
 from typing import Optional
 
 from data import CXRDataModule, ALL_CHEXPERT_LABELS
-from densenet_model import CXRDenseNet, get_loss_function
+from densenet_model import CXRDenseNet, get_loss_function, AUCMarginLoss
 
 
 class CXRClassifier(pl.LightningModule):
@@ -43,6 +45,10 @@ class CXRClassifier(pl.LightningModule):
         self.w_decay = model_args.get('w_decay', 0.05)
         self.task_weights = model_args.get('task_weights', None)
 
+        # Loss configuration
+        loss_config = config.get('loss', {})
+        self.loss_type = loss_config.get('type', 'bce')
+
         self.model = CXRDenseNet(config_path=config_path, num_classes=self.num_classes)
         self.criterion = None
 
@@ -58,38 +64,66 @@ class CXRClassifier(pl.LightningModule):
         self.example_input_array = torch.randn(1, 1, 224, 224)
 
     def setup(self, stage: Optional[str] = None):
-        """Setup loss function using config weights (with validation) or unweighted fallback."""
-        if self.criterion is None:
+        """Setup loss function based on config: BCE or AUC Margin Loss."""
+        if self.criterion is not None:
+            return
+
+        if self.loss_type == 'auc_margin':
+            auc_config = self.config.get('loss', {}).get('auc_margin', {})
+            margin = auc_config.get('margin', 1.0)
+
+            # Compute imratio (prior probability of positive per label) from training CSV
+            data_config = self.config.get('data', {})
+            working_dir = data_config.get('working_dir', os.getcwd())
+            train_csv = os.path.join(working_dir, data_config.get('train_split_csv', 'train_split.csv'))
+            df = pd.read_csv(train_csv)
+            imratio = []
+            for pathology in self.pathologies:
+                col = df[pathology].fillna(0).replace(-1.0, 0.0)
+                imratio.append(float(col.mean()))
+            print(f"Using AUC Margin Loss (margin={margin})")
+            print(f"  Imratio per label: {[f'{r:.3f}' for r in imratio]}")
+
+            self.criterion = get_loss_function(
+                loss_type='auc_margin', num_classes=self.num_classes,
+                margin=margin, imratio=imratio
+            )
+            # Negate alpha's gradient so standard descent becomes ascent (maximization)
+            self.criterion.alpha.register_hook(lambda grad: -grad)
+        else:
+            # BCE loss (default)
             if self.task_weights:
-                # Validate task_weights match num_classes
                 if len(self.task_weights) != self.num_classes:
                     print(f"WARNING: task_weights length ({len(self.task_weights)}) != num_classes ({self.num_classes})")
                     print(f"Falling back to unweighted BCEWithLogitsLoss")
-                    self.criterion = get_loss_function(weighted=False)
+                    self.criterion = get_loss_function(loss_type='bce')
                 else:
-                    # Use the weights from the config YAML
                     print(f"Using task weights from config: {self.task_weights}")
                     pos_weight = torch.tensor(self.task_weights, dtype=torch.float32)
-                    self.criterion = get_loss_function(weighted=True, pos_weight=pos_weight)
+                    self.criterion = get_loss_function(loss_type='bce', weighted=True, pos_weight=pos_weight)
             else:
-                # Fallback to unweighted if not provided
-                self.criterion = get_loss_function(weighted=False)
+                self.criterion = get_loss_function(loss_type='bce')
 
     def configure_optimizers(self):
-        """Configure AdamW optimizer and CosineAnnealingLR scheduler."""
-        optimizer = torch.optim.AdamW(
-            self.model.parameters(), 
-            lr=self.learning_rate,
-            weight_decay=self.w_decay
-        )
-        
-        # Use a scheduler to hit the min_lr specified in the config
+        """Configure optimizer and scheduler. Includes loss params for AUC Margin Loss."""
+        if isinstance(self.criterion, AUCMarginLoss):
+            # AUC loss: model params get weight decay, loss params (a, b, alpha) do not
+            param_groups = [
+                {'params': self.model.parameters(), 'weight_decay': self.w_decay},
+                {'params': [self.criterion.a, self.criterion.b, self.criterion.alpha],
+                 'weight_decay': 0.0},
+            ]
+        else:
+            param_groups = [{'params': self.model.parameters(), 'weight_decay': self.w_decay}]
+
+        optimizer = torch.optim.AdamW(param_groups, lr=self.learning_rate)
+
         scheduler = CosineAnnealingLR(
-            optimizer, 
-            T_max=self.trainer.max_epochs, 
+            optimizer,
+            T_max=self.trainer.max_epochs,
             eta_min=self.min_lr
         )
-        
+
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
@@ -134,6 +168,12 @@ class CXRClassifier(pl.LightningModule):
         self.log('val_acc', self.val_acc, prog_bar=True)
 
         return loss
+
+    def on_train_batch_end(self, outputs, batch, batch_idx):
+        """Project alpha >= 0 after each optimizer step (AUC Margin Loss constraint)."""
+        if isinstance(self.criterion, AUCMarginLoss):
+            with torch.no_grad():
+                self.criterion.alpha.clamp_(min=0)
 
     def on_train_epoch_end(self):
         auroc_scores = self.train_auroc.compute()
@@ -193,12 +233,12 @@ def train():
 
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
 
-    # Dynamically set checkpoint filename based on label mode
+    # Dynamically set checkpoint filename based on label mode and loss type
     use_all_labels = config.get('use_all_labels', False)
     label_suffix = 'alllabels' if use_all_labels else '5labels'
+    loss_type = config.get('loss', {}).get('type', 'bce')
     base_filename = chkpt_config.get('filename', 'densenet-{epoch:02d}-{val_loss:.3f}')
-    # Insert label suffix after 'densenet-' prefix
-    checkpoint_filename = base_filename.replace('densenet-', f'densenet-{label_suffix}-', 1)
+    checkpoint_filename = base_filename.replace('densenet-', f'densenet-{label_suffix}-{loss_type}-', 1)
 
     checkpoint = ModelCheckpoint(
         dirpath=chkpt_config.get('dirpath', './checkpoints'),
