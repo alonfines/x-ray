@@ -6,7 +6,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, List
 from train import CXRClassifier
-from data import CXRDataModule
+from data import get_data_module, parse_labels_config
 
 
 def load_label_certainty_from_csv(csv_path: str, pathologies: List[str]) -> Dict[int, Dict[str, str]]:
@@ -197,7 +197,7 @@ def calibrate_per_class_thresholds(data_module, model, device, config_path: str 
     weighting_scheme = conformal_config.get('weighting_scheme', 'uniform')
     calibration_dir = conformal_config.get('calibration_dir', './conformal_calibration')
 
-    pathologies = config.get('use_labels', [])
+    pathologies, _ = parse_labels_config(config)
     num_classes = len(pathologies)
 
     Path(calibration_dir).mkdir(parents=True, exist_ok=True)
@@ -267,8 +267,8 @@ def main(config_path: str = "config.yaml"):
 
     # Load model
     print("\n[1] Loading trained model...")
-    output_config = config.get('output', {})
-    checkpoint_path = output_config.get('checkpoint_path')
+    eval_config = config.get('evaluation', {})
+    checkpoint_path = eval_config.get('checkpoint_path')
 
     if checkpoint_path:
         checkpoint_file = Path(checkpoint_path)
@@ -276,7 +276,7 @@ def main(config_path: str = "config.yaml"):
             print(f"  ✗ Checkpoint not found at: {checkpoint_path}")
             return
     else:
-        checkpoint_dir = output_config.get('checkpoint_dir', './checkpoints')
+        checkpoint_dir = eval_config.get('checkpoint_dir', './checkpoints')
         checkpoint_files = list(Path(checkpoint_dir).glob('densenet-*.ckpt'))
         if not checkpoint_files:
             print(f"  ✗ No checkpoints found in {checkpoint_dir}")
@@ -296,7 +296,7 @@ def main(config_path: str = "config.yaml"):
 
     # Load data module
     print("\n[2] Loading data module...")
-    data_module = CXRDataModule(config_path=config_path, num_workers=4)
+    data_module = get_data_module(config_path=config_path, num_workers=4)
     data_module.setup(stage='fit')
     print(f"  ✓ Data module loaded (fit stage for conformal)")
 

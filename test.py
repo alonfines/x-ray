@@ -4,7 +4,7 @@ import torch
 import pandas as pd
 from pathlib import Path
 from train import CXRClassifier
-from data import CXRDataModule, ALL_CHEXPERT_LABELS
+from data import get_data_module, ALL_CHEXPERT_LABELS, parse_labels_config
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
 
@@ -47,12 +47,13 @@ def test_inference(config_path: str = "config.yaml"):
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
+    eval_config = config.get('evaluation', {})
     output_config = config.get('output', {})
     data_config = config.get('data', {})
     working_dir = data_config.get('working_dir', os.getcwd())
 
     print("\n[1] Loading trained model...")
-    checkpoint_path = output_config.get('checkpoint_path')
+    checkpoint_path = eval_config.get('checkpoint_path')
 
     if checkpoint_path:
         checkpoint_file = Path(checkpoint_path)
@@ -60,7 +61,7 @@ def test_inference(config_path: str = "config.yaml"):
             print(f"  ✗ Checkpoint not found at: {checkpoint_path}")
             return
     else:
-        checkpoint_dir = output_config.get('checkpoint_dir', './checkpoints')
+        checkpoint_dir = eval_config.get('checkpoint_dir', './checkpoints')
         checkpoint_files = list(Path(checkpoint_dir).glob('densenet-*.ckpt'))
         if not checkpoint_files:
             print(f"  ✗ No checkpoints found in {checkpoint_dir}")
@@ -79,12 +80,11 @@ def test_inference(config_path: str = "config.yaml"):
     print(f"  ✓ Model loaded ({len(model.state_dict())} weights)")
 
     print("\n[2] Loading test data...")
-    data_module = CXRDataModule(config_path=config_path, num_workers=4)
+    data_module = get_data_module(config_path=config_path, num_workers=4)
     data_module.setup(stage='test')
     print(f"  ✓ Test dataloader ready")
 
-    use_all_labels = config.get('use_all_labels', False)
-    pathologies = ALL_CHEXPERT_LABELS if use_all_labels else config.get('use_labels', [])
+    pathologies, _ = parse_labels_config(config)
 
     print("\n[3] Running inference on test set...")
     test_loader = data_module.test_dataloader()

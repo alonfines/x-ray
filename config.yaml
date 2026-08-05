@@ -1,45 +1,78 @@
 experiment_name: "baseline"
 
-# Disease labels to use
-use_labels:
-  - Atelectasis
-  - Cardiomegaly
-  - Consolidation
-  - Pleural Effusion
-  - Pneumothorax
+# Dataset selection: "chexpert" or "mimic"
+dataset: "chexpert"
 
-# Use all 13 CheXpert labels (excluding No Finding)
-# When true: predicts all pathologies and applies No Finding preprocessing
-# When false: uses use_labels above for 5-label mode
-use_all_labels: True
+# Which pathologies to classify
+# "all" = all 13 CheXpert labels (excluding No Finding), with No Finding preprocessing
+# or list specific labels:
+labels: "all"
+#labels:
+#  - Atelectasis
+#  - Cardiomegaly
+#  - Consolidation
+#  - Pleural Effusion
+#  - Pneumothorax
 
 # Loss configuration
 # type: "bce" (BCEWithLogitsLoss, default) or "auc_margin" (AUC Margin Loss from Yuan et al. 2021)
 loss:
   type: "auc_margin"
   auc_margin:
-    margin: 1.0  # margin parameter m (paper tunes from {0.3, 0.5, 0.7, 1.0})
+    margin: 1.0 # margin parameter m (paper tunes from {0.3, 0.5, 0.7, 1.0})
+    pretrained_checkpoint: "checkpoints/densenet-alllabels-bce-epoch=39-val_auroc_mean=0.774.ckpt"  # BCE checkpoint for two-stage training (null to train from scratch)
+    reinit_classifier: true  # reinitialize classifier head before AUC fine-tuning (paper recommendation)
 
-# Data configuration (Matches data.py expectations)
+# Data paths
 data:
   working_dir: "/gpfs0/tamyr/users/alonfi/XRay"
   chexpert_dir: "/gpfs0/tamyr/projects/data/chest_xray/chexpert"
-  train_split_csv: "csv_files/train_split.csv"
-  valid_split_csv: "csv_files/valid_split.csv"
-  conformal_split_csv: "csv_files/conformal_split.csv"
-  test_split_csv: "csv_files/test_split.csv"
+  train_split_csv: "csv_files/chexpert/train_split.csv"
+  valid_split_csv: "csv_files/chexpert/valid_split.csv"
+  conformal_split_csv: "csv_files/chexpert/conformal_split.csv"
+  test_split_csv: "csv_files/chexpert/test_split.csv"
 
-  # Stratified split ratios (combines train.csv + valid.csv)
+  # Stratified split ratios (for CheXpert: combines train.csv + valid.csv)
   split_ratios:
     train: 0.70      # 70% for training
     validation: 0.10 # 10% for validation (early stopping)
     conformal: 0.10  # 10% for conformal calibration
     test: 0.10       # 10% for final test evaluation
 
+# MIMIC-CXR-JPG data paths
+mimic:
+  data_dir: "/gpfs0/tamyr/projects/data/MIMIC-CXR"
+  files_dir: "/gpfs0/tamyr/projects/data/MIMIC-CXR/files"
+  metadata_csv: "/gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.0.0-metadata.csv"
+  chexpert_csv: "/gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.0.0-chexpert.csv"
+  test_labels_csv: "/gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.1.0-test-set-labeled.csv"
+  views: ["AP", "PA"]  # Frontal views only
+  train_split_csv: "csv_files/mimic/train_split.csv"
+  valid_split_csv: "csv_files/mimic/valid_split.csv"
+  conformal_split_csv: "csv_files/mimic/conformal_split.csv"
+  test_split_csv: "csv_files/mimic/test_split.csv"
+  split_ratios:
+    train: 0.70
+    validation: 0.10
+    conformal: 0.10
+    test: 0.10
+
 # Training dataloader settings
 training:
   batch_size: 32
   num_workers: 16
+  task_weights: # calculated from the new training set (70/10/10/10 split)
+    - 2.242 # Atelectasis
+    - 3.040 # Cardiomegaly
+    - 8.464 # Consolidation
+    - 1.742 # Pleural Effusion
+    - 6.383 # Pneumothorax
+
+# Optimizer
+optimizer:
+  lr: 0.001
+  min_lr: 1e-6
+  w_decay: 0.05
 
 # Lightning Trainer configuration
 trainer:
@@ -74,24 +107,6 @@ chkpt_callback:
   dirpath: "/gpfs0/tamyr/users/alonfi/XRay/checkpoints"
   filename: "densenet-{epoch:02d}-{val_auroc_mean:.3f}"
 
-# Nested Model configuration matching LightningCLI
-model:
-  class_path: chest_xray.pl_modules.CXRLitModule
-  init_args:
-    lr: 0.001
-    min_lr: 1e-6
-    w_decay: 0.05
-    task_weights: # calculated from the new training set (70/10/10/10 split)
-      - 2.242 # Atelectasis 
-      - 3.040 # Cardiomegaly 
-      - 8.464 # Consolidation
-      - 1.742 # Pleural Effusion/or
-      - 6.383 # Pneumothorax 
-    model:
-      class_path: chest_xray.models.CXRDenseNet
-      init_args:
-        imagenet_pretrained: True
-
 # Conformal prediction configuration
 conformal:
   alpha: 0.1 # 1 - alpha = 0.9 (90% confidence level)
@@ -100,9 +115,12 @@ conformal:
   calibration_dir: "/gpfs0/tamyr/users/alonfi/XRay/conformal_calibration"
   q_hat_file: "/gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/q_hat.pt"
 
-# Output configuration
+# Evaluation (for test.py and conformal calibration)
+evaluation:
+  checkpoint_path: "/gpfs0/tamyr/users/alonfi/XRay/checkpoints/densenet-alllabels-bce-epoch=39-val_auroc_mean=0.774.ckpt" # specific checkpoint to load (null = latest from checkpoints dir)
+  checkpoint_dir: "/gpfs0/tamyr/users/alonfi/XRay/checkpoints"  # fallback: scan for latest checkpoint
+
+# Output paths
 output:
-  checkpoint_dir: "/gpfs0/tamyr/users/alonfi/XRay/checkpoints"
-  checkpoint_path: "/gpfs0/tamyr/users/alonfi/XRay/checkpoints/densenet-alllabels-bce-epoch=39-val_auroc_mean=0.774.ckpt" # If set, loads this specific checkpoint. If null, loads latest from checkpoint_dir
   log_dir: "/gpfs0/tamyr/users/alonfi/XRay/logs"
-  results_csv: "csv_files/results.csv"  # CSV output relative to working_dir
+  results_csv: "csv_files/chexpert/results.csv"  # CSV output relative to working_dir

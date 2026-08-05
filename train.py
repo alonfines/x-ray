@@ -1,7 +1,6 @@
 import os
 import yaml
 import torch
-import pandas as pd
 import lightning as pl
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor
@@ -9,8 +8,9 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from torchmetrics import Accuracy, AUROC
 from typing import Optional
 
-from data import CXRDataModule, ALL_CHEXPERT_LABELS
-from densenet_model import CXRDenseNet, get_loss_function, AUCMarginLoss
+from data import get_data_module, ALL_CHEXPERT_LABELS, parse_labels_config
+from densenet_model import CXRDenseNet
+from losses import get_loss_function, AUCMarginLoss
 
 
 class CXRClassifier(pl.LightningModule):
@@ -25,25 +25,16 @@ class CXRClassifier(pl.LightningModule):
 
         self.config = config
 
-        # Parse the nested LightningCLI-style config
-        model_args = config.get('model', {}).get('init_args', {})
-        densenet_args = model_args.get('model', {}).get('init_args', {})
-
-        # Determine which labels to use based on use_all_labels config
-        use_all_labels = config.get('use_all_labels', False)
-        if use_all_labels:
-            self.pathologies = ALL_CHEXPERT_LABELS
-        else:
-            self.pathologies = config.get('use_labels', [])
-
-        # Always derive num_classes from len(pathologies), never from config
+        # Determine which labels to use
+        self.pathologies, _ = parse_labels_config(config)
         self.num_classes = len(self.pathologies)
-        
+
         # Hyperparameters from config
-        self.learning_rate = model_args.get('lr', 0.001)
-        self.min_lr = float(model_args.get('min_lr', 1e-6))
-        self.w_decay = model_args.get('w_decay', 0.05)
-        self.task_weights = model_args.get('task_weights', None)
+        optimizer_config = config.get('optimizer', {})
+        self.learning_rate = optimizer_config.get('lr', 0.001)
+        self.min_lr = float(optimizer_config.get('min_lr', 1e-6))
+        self.w_decay = optimizer_config.get('w_decay', 0.05)
+        self.task_weights = config.get('training', {}).get('task_weights', None)
 
         # Loss configuration
         loss_config = config.get('loss', {})
@@ -51,6 +42,31 @@ class CXRClassifier(pl.LightningModule):
 
         self.model = CXRDenseNet(config_path=config_path, num_classes=self.num_classes)
         self.criterion = None
+
+        # Two-stage training: load BCE-pretrained weights for AUC fine-tuning
+        if self.loss_type == 'auc_margin':
+            auc_config = config.get('loss', {}).get('auc_margin', {})
+            pretrained_ckpt = auc_config.get('pretrained_checkpoint')
+            if pretrained_ckpt:
+                data_config = config.get('data', {})
+                working_dir = data_config.get('working_dir', os.getcwd())
+                if not os.path.isabs(pretrained_ckpt):
+                    pretrained_ckpt = os.path.join(working_dir, pretrained_ckpt)
+                print(f"[Two-stage] Loading BCE-pretrained weights from: {pretrained_ckpt}")
+                ckpt = torch.load(pretrained_ckpt, map_location='cpu', weights_only=False)
+                # Extract model weights from Lightning checkpoint
+                state_dict = {k.replace('model.', '', 1): v
+                              for k, v in ckpt['state_dict'].items()
+                              if k.startswith('model.')}
+                self.model.load_state_dict(state_dict, strict=False)
+                print(f"[Two-stage] Loaded {len(state_dict)} weight tensors")
+
+                # Reinitialize classifier head with random weights (paper recommendation)
+                if auc_config.get('reinit_classifier', True):
+                    import torch.nn as nn
+                    nn.init.xavier_uniform_(self.model.model.classifier.weight)
+                    nn.init.zeros_(self.model.model.classifier.bias)
+                    print(f"[Two-stage] Reinitialized classifier head ({self.model.model.classifier})")
 
         # Metrics
         self.train_acc = Accuracy(task='multilabel', num_labels=self.num_classes)
@@ -71,22 +87,11 @@ class CXRClassifier(pl.LightningModule):
         if self.loss_type == 'auc_margin':
             auc_config = self.config.get('loss', {}).get('auc_margin', {})
             margin = auc_config.get('margin', 1.0)
-
-            # Compute imratio (prior probability of positive per label) from training CSV
-            data_config = self.config.get('data', {})
-            working_dir = data_config.get('working_dir', os.getcwd())
-            train_csv = os.path.join(working_dir, data_config.get('train_split_csv', 'train_split.csv'))
-            df = pd.read_csv(train_csv)
-            imratio = []
-            for pathology in self.pathologies:
-                col = df[pathology].fillna(0).replace(-1.0, 0.0)
-                imratio.append(float(col.mean()))
-            print(f"Using AUC Margin Loss (margin={margin})")
-            print(f"  Imratio per label: {[f'{r:.3f}' for r in imratio]}")
+            print(f"Using AUC Margin Loss v2 (margin={margin})")
 
             self.criterion = get_loss_function(
                 loss_type='auc_margin', num_classes=self.num_classes,
-                margin=margin, imratio=imratio
+                margin=margin
             )
             # Negate alpha's gradient so standard descent becomes ascent (maximization)
             self.criterion.alpha.register_hook(lambda grad: -grad)
@@ -205,7 +210,7 @@ def train():
     chkpt_config = config.get('chkpt_callback', {})
 
     # Data module & Model
-    data_module = CXRDataModule(config_path=config_path)
+    data_module = get_data_module(config_path=config_path)
     model = CXRClassifier(config_path=config_path)
 
     # Setup Loggers
@@ -234,8 +239,8 @@ def train():
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
 
     # Dynamically set checkpoint filename based on label mode and loss type
-    use_all_labels = config.get('use_all_labels', False)
-    label_suffix = 'alllabels' if use_all_labels else '5labels'
+    _, use_all = parse_labels_config(config)
+    label_suffix = 'alllabels' if use_all else '5labels'
     loss_type = config.get('loss', {}).get('type', 'bce')
     base_filename = chkpt_config.get('filename', 'densenet-{epoch:02d}-{val_loss:.3f}')
     checkpoint_filename = base_filename.replace('densenet-', f'densenet-{label_suffix}-{loss_type}-', 1)

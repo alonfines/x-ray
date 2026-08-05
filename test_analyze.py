@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 from typing import Dict, List, Tuple
+from data import parse_labels_config
 
 
 def load_analysis_data(config_path: str = "config.yaml") -> Tuple[pd.DataFrame, Dict, List, Dict]:
@@ -30,7 +31,7 @@ def load_analysis_data(config_path: str = "config.yaml") -> Tuple[pd.DataFrame, 
     thresholds_file = os.path.join(calibration_dir, 'bcops_thresholds.pt')
     saved_data = torch.load(thresholds_file)
 
-    pathologies = config.get('use_labels', [])
+    pathologies, _ = parse_labels_config(config)
 
     return df, saved_data, pathologies, config
 

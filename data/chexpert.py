@@ -1,3 +1,5 @@
+"""CheXpert dataset and DataModule."""
+
 import os
 import yaml
 import pandas as pd
@@ -10,14 +12,7 @@ from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from typing import Optional, Tuple, List
 
-# All 13 CheXpert pathologies (excluding No Finding)
-ALL_CHEXPERT_LABELS = [
-    "Enlarged Cardiomediastinum", "Cardiomegaly", "Lung Opacity", "Lung Lesion",
-    "Edema", "Consolidation", "Pneumonia", "Atelectasis", "Pneumothorax",
-    "Pleural Effusion", "Pleural Other", "Fracture", "Support Devices"
-]
-NO_FINDING_COL = "No Finding"
-SUPPORT_DEVICES_COL = "Support Devices"
+from data import parse_labels_config, NO_FINDING_COL, SUPPORT_DEVICES_COL
 
 
 class CheXpertDataset(Dataset):
@@ -48,11 +43,11 @@ class CheXpertDataset(Dataset):
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         row = self.df.iloc[idx]
         img_path = row['Path']
-        
+
         if not os.path.isabs(img_path):
             # Find the parent directory of self.img_dir (which is the base chexpert_dir)
             base_dir = os.path.dirname(self.img_dir)
-            
+
             # Use the path string itself to determine if it goes to train or valid
             if 'train/' in img_path:
                 relative_path = img_path.split('train/')[-1]
@@ -66,8 +61,7 @@ class CheXpertDataset(Dataset):
         else:
             full_path = img_path
 
-        # (The rest of your image loading and label logic remains the same)
-        img = Image.open(full_path).convert('L') 
+        img = Image.open(full_path).convert('L')
         img = np.array(img)
         img = np.expand_dims(img, axis=0)
 
@@ -94,20 +88,18 @@ class CheXpertDataset(Dataset):
         if self.no_finding_preprocessing:
             no_finding_val = row.get(NO_FINDING_COL, 0.0)
             if not pd.isna(no_finding_val) and float(no_finding_val) == 1.0:
-                # Preserve Support Devices label, zero all others
                 if SUPPORT_DEVICES_COL in self.pathologies:
                     support_idx = self.pathologies.index(SUPPORT_DEVICES_COL)
                     support_val = labels[support_idx].item()
                     labels = torch.zeros_like(labels)
                     labels[support_idx] = support_val
                 else:
-                    # If Support Devices not in pathologies, just zero all
                     labels = torch.zeros_like(labels)
 
         return img, labels
 
 
-class CXRDataModule(pl.LightningDataModule):
+class CheXpertDataModule(pl.LightningDataModule):
     """PyTorch Lightning DataModule for CheXpert dataset."""
 
     def __init__(self, config_path: str = "config.yaml", **kwargs):
@@ -116,21 +108,13 @@ class CXRDataModule(pl.LightningDataModule):
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
 
-        # Determine which labels to use and whether to apply No Finding preprocessing
-        use_all_labels = config.get('use_all_labels', False)
-        if use_all_labels:
-            self.pathologies = ALL_CHEXPERT_LABELS
-            self.no_finding_preprocessing = True
-        else:
-            self.pathologies = config.get('use_labels', None)
-            self.no_finding_preprocessing = False
+        self.pathologies, use_all_labels = parse_labels_config(config)
+        self.no_finding_preprocessing = use_all_labels
 
         data_config = config.get('data', {})
         self.working_dir = data_config.get('working_dir', os.getcwd())
-        # Support both 'chexpert_dir' and 'mimic_cxr_dir' keys for backward compatibility
-        self.chexpert_dir = data_config.get('chexpert_dir') or data_config.get('mimic_cxr_dir')
+        self.chexpert_dir = data_config.get('chexpert_dir')
 
-        # Define all four CSV paths
         self.train_csv = os.path.join(self.working_dir, data_config.get('train_split_csv', 'train_split.csv'))
         self.valid_csv = os.path.join(self.working_dir, data_config.get('valid_split_csv', 'valid_split.csv'))
         self.conformal_csv = os.path.join(self.working_dir, data_config.get('conformal_split_csv', 'conformal_split.csv'))
@@ -146,7 +130,7 @@ class CXRDataModule(pl.LightningDataModule):
         self.train_dataset = None
         self.val_dataset = None
         self.conformal_dataset = None
-        self.test_dataset = None # Added test dataset placeholder
+        self.test_dataset = None
 
     def setup(self, stage: Optional[str] = None):
         transform = tforms.Compose([
@@ -157,7 +141,7 @@ class CXRDataModule(pl.LightningDataModule):
         augment = tforms.Compose([
             xrv.datasets.ToPILImage(),
             tforms.RandomHorizontalFlip(p=0.5),
-            tforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.95, 1.05)), 
+            tforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.95, 1.05)),
             tforms.ToTensor()
         ])
 
@@ -174,7 +158,7 @@ class CXRDataModule(pl.LightningDataModule):
         if stage in [None, 'fit', 'validate']:
             self.val_dataset = CheXpertDataset(
                 csv_path=self.valid_csv,
-                img_dir=self.train_img_dir, # Valid was split from train.csv, so it uses train_img_dir!
+                img_dir=self.train_img_dir,
                 pathologies=self.pathologies,
                 transform=transform,
                 data_aug=None,
@@ -184,22 +168,21 @@ class CXRDataModule(pl.LightningDataModule):
         if stage in [None, 'fit', 'validate', 'test']:
             self.conformal_dataset = CheXpertDataset(
                 csv_path=self.conformal_csv,
-                img_dir=self.train_img_dir, # Conformal was split from train.csv, so it uses train_img_dir!
+                img_dir=self.train_img_dir,
                 pathologies=self.pathologies,
                 transform=transform,
                 data_aug=None,
                 no_finding_preprocessing=self.no_finding_preprocessing
             )
 
-        # Added setup for the purely isolated Test set
         if stage in [None, 'test']:
             self.test_dataset = CheXpertDataset(
                 csv_path=self.test_csv,
-                img_dir=self.valid_img_dir, # Test came from the raw valid.csv, so it uses valid_img_dir!
+                img_dir=self.valid_img_dir,
                 pathologies=self.pathologies,
                 transform=transform,
                 data_aug=None,
-                clean_uncertain=False,  # Preserve uncertain (-1.0) labels for test evaluation
+                clean_uncertain=False,
                 no_finding_preprocessing=self.no_finding_preprocessing
             )
 
@@ -212,6 +195,5 @@ class CXRDataModule(pl.LightningDataModule):
     def conformal_dataloader(self) -> DataLoader:
         return DataLoader(self.conformal_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False, pin_memory=True)
 
-    # Added the missing test_dataloader
     def test_dataloader(self) -> DataLoader:
         return DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False, pin_memory=True)

@@ -4,72 +4,111 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a proof-of-concept implementation of a DenseNet-based chest X-ray classification model using the CheXpert dataset. The project trains a deep learning model to classify multiple pathological conditions from chest radiographs.
+This is a DenseNet-based chest X-ray classification model supporting both **CheXpert** and **MIMIC-CXR-JPG** datasets. The project trains a deep learning model to classify multiple pathological conditions from chest radiographs.
 
 **Key Goal:** Build and test the training pipeline locally before uploading to production servers.
 
-## Data Structure
+## Data Package (`data/`)
 
-The `chexpert/` directory mirrors the production server structure:
+All dataset logic lives in the `data/` package:
 
 ```
-chexpert/
-├── train.csv              # (Original) Source for train/validation/conformal splits
-├── valid.csv              # (Original) Becomes test_split.csv (held-out test set)
-├── train_split.csv        # Stratified train set (training only)
-├── valid_split.csv        # Stratified validation set (validation during training)
-├── conformal_split.csv    # Stratified conformal set (held-out for conformal calibration)
-├── test_split.csv         # Test set from valid.csv (final evaluation)
-├── train/                 # Training images organized by patient ID
-│   └── patient*/          # Individual patient folders containing X-ray images
-└── valid/                 # Test images
-    └── patient*/          # Individual patient folders
+data/
+├── __init__.py          # Shared constants (ALL_CHEXPERT_LABELS), parse_labels_config(), get_data_module() factory
+├── split_utils.py       # Shared stratification & statistics helpers
+├── chexpert.py          # CheXpertDataset + CheXpertDataModule
+├── chexpert_split.py    # CheXpert splitting script
+├── mimic.py             # MIMICDataset + MIMICDataModule
+└── mimic_split.py       # MIMIC splitting script (scans disk for existing files, filters by view)
+```
+
+- **`get_data_module(config_path)`** is the main entry point. It reads `config['dataset']` (`"chexpert"` or `"mimic"`) and returns the appropriate DataModule.
+- **`parse_labels_config(config)`** returns `(pathologies, use_all_labels)` based on `config['labels']`.
+- All consumer scripts (`train.py`, `test.py`, `calculate_conformal_pred.py`) import from `data` package.
+
+## Data Structure
+
+### CSV Organization
+
+Split CSVs are organized by dataset under `csv_files/`:
+
+```
+csv_files/
+├── chexpert/
+│   ├── train_split.csv
+│   ├── valid_split.csv
+│   ├── conformal_split.csv
+│   ├── test_split.csv
+│   ├── results.csv
+│   └── conformal_predictions.csv
+└── mimic/
+    ├── train_split.csv
+    ├── valid_split.csv
+    ├── conformal_split.csv
+    └── test_split.csv
+```
+
+### CheXpert Raw Data
+
+Located at `data.chexpert_dir` (config.yaml). Contains `train/` and `valid/` image directories plus raw `train.csv` and `valid.csv`.
+
+### MIMIC-CXR-JPG Raw Data
+
+Located at `mimic.data_dir` (config.yaml): `/gpfs0/tamyr/projects/data/MIMIC-CXR/`
+
+```
+MIMIC-CXR/
+├── csv/
+│   ├── mimic-cxr-2.0.0-metadata.csv    # Image-level metadata (dicom_id, subject_id, study_id, ViewPosition)
+│   ├── mimic-cxr-2.0.0-chexpert.csv    # Study-level CheXpert labels (subject_id, study_id, 14 labels)
+│   └── mimic-cxr-2.1.0-test-set-labeled.csv
+└── files/
+    └── p{XX}/p{subject_id}/s{study_id}/{dicom_id}.jpg
 ```
 
 ### CSV Format
 
-All CSVs contain:
-- **Path**: Image path reference
-- **Demographics**: Sex, Age
-- **View Info**: Frontal/Lateral, AP/PA orientation
-- **Labels**: 14 binary/ternary pathology conditions:
-  - No Finding, Enlarged Cardiomediastinum, Cardiomegaly, Lung Opacity, Lung Lesion, Edema, Consolidation, Pneumonia, Atelectasis, Pneumothorax, Pleural Effusion, Pleural Other, Fracture, Support Devices
-  - Values: 1.0 (positive), 0.0 (negative), -1.0 (uncertain), empty (unlabeled)
+Both datasets use the same 14 CheXpert pathology labels:
+- No Finding, Enlarged Cardiomediastinum, Cardiomegaly, Lung Opacity, Lung Lesion, Edema, Consolidation, Pneumonia, Atelectasis, Pneumothorax, Pleural Effusion, Pleural Other, Fracture, Support Devices
+- Values: 1.0 (positive), 0.0 (negative), -1.0 (uncertain), empty (unlabeled)
+
+**CheXpert CSVs** have a `Path` column for image paths.
+**MIMIC CSVs** have `dicom_id`, `subject_id`, `study_id` columns; image paths are constructed from these.
 
 ### Dataset Splitting Strategy
 
-Raw `train.csv` and `valid.csv` are processed into four stratified sets:
+Both datasets are split into four stratified sets with the same ratios:
 
-1. **Train Set**: Model training (70% of filtered train.csv)
-2. **Validation Set**: Model validation during training (10% of filtered train.csv)
-3. **Conformal Set**: Held-out data for conformal prediction calibration (10% of filtered train.csv)
-4. **Test Set**: Final held-out evaluation set (entire valid.csv, unfiltered)
+1. **Train Set**: 70% for model training
+2. **Validation Set**: 10% for validation (early stopping)
+3. **Conformal Set**: 10% for conformal prediction calibration
+4. **Test Set**: 10% for final held-out evaluation
 
 **Label Filtering:**
 - Train/Validation/Conformal splits: Uncertain labels (-1.0) are **excluded**. Only positive (1.0) and negative (0.0) labels are retained for clean training data.
-- Test split: Uses data from the original dataset splits. Note: the test set **does** contain uncertain (-1.0) labels. These are preserved at load time (`clean_uncertain=False`) and filtered out per-pathology when computing AUC.
+- Test split: Uncertain (-1.0) labels are **preserved** at load time (`clean_uncertain=False`) and filtered out per-pathology when computing AUC.
+
+**MIMIC-specific:**
+- Filtered to frontal views only (AP + PA) via `mimic.views` in config.yaml
+- `mimic_split.py` scans the disk for actually downloaded files before splitting (download may be ongoing)
+- Labels are joined from metadata CSV (image-level) + CheXpert CSV (study-level) on `(subject_id, study_id)`
 
 **Creating splits:**
 ```bash
-runai submit split_job python3 data_split.py
+# CheXpert
+PYTHONPATH=. python data/chexpert_split.py
+
+# MIMIC-CXR
+PYTHONPATH=. python data/mimic_split.py
 ```
 
-This script:
-- Reads raw train.csv and valid.csv
-- Filters train.csv to remove samples with uncertain (-1.0) labels across any pathology
-- Performs stratified splits on filtered train.csv: 70% train / 10% validation / 10% conformal
-- Uses entire valid.csv (unfiltered) as the test set with no modification
-- Ensures similar label distributions across train/validation/conformal sets via Mondrian-style stratification
-- Prints final sample counts for each split
-- Creates four new CSV files used by data.py
-
-All splits are stratified based on total positive pathologies per sample to maintain label distribution balance.
+All splits use Mondrian-style stratification based on top pathology prevalence.
 
 ## Development Workflow
 
 **HPC Environment - Login Node vs. Compute Nodes**
 
-⚠️ **CRITICAL:** The login node is for data transfer and job submission ONLY. Do NOT run Python scripts, training, or computationally intensive operations on the login node. All work must be submitted to compute nodes via `runai`.
+The login node is for data transfer and job submission ONLY. Do NOT run Python scripts, training, or computationally intensive operations on the login node. All work must be submitted to compute nodes via `runai`.
 
 1. Edit and commit code on the login node
 2. Push to git repository
@@ -87,7 +126,11 @@ All splits are stratified based on total positive pathologies per sample to main
 
 1. Create the stratified splits:
 ```bash
-runai submit split_job python3 data_split.py
+# CheXpert
+runai submit split_job python3 -c "import sys; sys.path.insert(0,'.'); exec(open('data/chexpert_split.py').read())"
+
+# MIMIC-CXR
+runai submit split_job python3 -c "import sys; sys.path.insert(0,'.'); exec(open('data/mimic_split.py').read())"
 ```
 
 2. Train the model:
@@ -95,27 +138,30 @@ runai submit split_job python3 data_split.py
 runai submit train_job python3 train.py
 ```
 
-3. Run conformal prediction (calibration + test evaluation):
+3. Run test evaluation:
 ```bash
 runai submit test_job python3 test.py
 ```
 
 **Configuration:**
-- Update `conformal_split_size` in config.yaml based on your dataset size
-- Update `chexpert_dir` path if needed
-- The scripts automatically scale to handle the full dataset
+- Set `dataset: "chexpert"` or `dataset: "mimic"` in config.yaml to switch datasets
+- All scripts automatically use the correct DataModule via `get_data_module()`
+- Update paths in the `data:` or `mimic:` sections of config.yaml as needed
 
 ## Key Implementation Notes
 
-- **data.py**: `CXRDataModule` loads from four split CSVs (train_split.csv, valid_split.csv, conformal_split.csv, test_split.csv)
-- **data.py**: Includes `conformal_dataloader()` for conformal calibration and `test_dataloader()` for final evaluation
-- **data.py**: Correctly maps image directories (train/val/conformal use train_img_dir, test uses valid_img_dir)
-- **config.yaml**: Contains `conformal_split_size` parameter (number of samples to reserve for conformal prediction)
-- **data_split.py**: Combines train.csv and valid.csv, then splits into train/validation/conformal/test. Filters uncertain -1.0 labels from train/validation/conformal sets only. Test set retains all labels (including -1.0 uncertain) from the split data.
-- **config.yaml**: `use_all_labels: True` enables 13-label mode (all CheXpert pathologies excluding No Finding) with No Finding preprocessing. When `False`, uses the 5 labels listed in `use_labels`.
-- **config.yaml**: `loss.type` selects the training loss: `"bce"` (default, BCEWithLogitsLoss with optional task_weights) or `"auc_margin"` (AUC Margin Loss from Yuan et al. 2021, arXiv:2012.03173). AUC Margin Loss directly optimizes AUC via a min-max surrogate with learnable primal-dual parameters (a, b, α per label). Margin `m` is tunable via `loss.auc_margin.margin` (paper tunes from {0.3, 0.5, 0.7, 1.0}). Imratio (class priors) is computed automatically from the training CSV.
-- **densenet_model.py**: Contains `AUCMarginLoss` class implementing equation (8) from the paper, and `get_loss_function()` factory that returns the configured loss.
-- **train.py**: Trains on train_split, validates on valid_split. When using AUC Margin Loss, includes loss parameters (a, b, α) in the optimizer, applies gradient ascent on α via hook, and projects α ≥ 0 after each step.
-- **test.py**: Runs inference on test_split, saves predictions to CSV, and prints per-label AUC (filtering out uncertain labels). Does not perform calibration.
-- **calculate_conformal_pred.py**: Separate workflow for conformal prediction calibration using conformal_split
-- **test_analyze.py**: Analyzes results from test.py output without requiring re-runs — use for evaluation and visualization after inference is complete
+- **data/__init__.py**: Exports `ALL_CHEXPERT_LABELS`, `parse_labels_config()`, and `get_data_module()` factory. The factory reads `config['dataset']` to return the correct DataModule.
+- **data/chexpert.py**: `CheXpertDataset` + `CheXpertDataModule`. Loads from four split CSVs. Maps image paths from the `Path` column, routing to `train/` or `valid/` image directories.
+- **data/mimic.py**: `MIMICDataset` + `MIMICDataModule`. Builds image paths from `(subject_id, study_id, dicom_id)` columns. All images come from a single `files_dir`.
+- **data/chexpert_split.py**: Splits CheXpert raw CSVs into train/validation/conformal/test. Filters uncertain labels from non-test sets.
+- **data/mimic_split.py**: Joins metadata + labels, filters to configured views (AP/PA), scans disk for existing files, then splits. Re-runnable as download progresses.
+- **data/split_utils.py**: Shared Mondrian stratification logic and split statistics printing.
+- **config.yaml**: `dataset` field selects active dataset. `data:` section has CheXpert paths. `mimic:` section has MIMIC paths and `views` filter. `labels: "all"` enables 13-label mode (excluding No Finding) with No Finding preprocessing.
+- **config.yaml**: `loss.type` selects the training loss: `"bce"` or `"auc_margin"` (AUC Margin Loss from Yuan et al. 2021).
+- **config.yaml**: Optimizer hyperparameters under `optimizer:`. Checkpoint loading under `evaluation:`. Output paths under `output:`.
+- **losses/**: Loss implementations. `get_loss_function()` factory, `AUCMarginLoss`, BCE with pos_weights.
+- **densenet_model.py**: `CXRDenseNet` model class (DenseNet wrapper with torchxrayvision pretrained weights).
+- **train.py**: Trains on train_split, validates on valid_split. Uses `get_data_module()` to load the correct dataset.
+- **test.py**: Runs inference on test_split, saves predictions to CSV, prints per-label AUC (filtering uncertain labels).
+- **calculate_conformal_pred.py**: Conformal prediction calibration using conformal_split.
+- **test_analyze.py**: Analyzes results from test.py output without requiring re-runs.
