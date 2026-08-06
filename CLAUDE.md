@@ -148,6 +148,36 @@ runai submit test_job python3 test.py
 - All scripts automatically use the correct DataModule via `get_data_module()`
 - Update paths in the `data:` or `mimic:` sections of config.yaml as needed
 
+## Hierarchical Conditional Training (Pham et al. 2020)
+
+Implements the method from "Interpreting chest X-rays via CNNs that exploit hierarchical disease dependencies and uncertainty labels."
+
+**Components:**
+- `data/hierarchy.py`: Disease hierarchy definition (`CHEXPERT_HIERARCHY`), conditional mask, and `apply_hierarchical_inference()`.
+- `data/conditional_dataset.py`: `ConditionalSubset` wrapper that filters to parent-positive samples for Phase 1.
+- `train_hierarchical.py`: Two-phase training orchestrator (Phase 1: conditional subset, Phase 2: frozen backbone + full data).
+
+**Uncertain label strategies** (set via `training.uncertain_strategy` in config.yaml):
+- `u_zeros` (default, backward-compatible): -1 → 0.0
+- `u_ones`: -1 → 1.0
+- `u_zeros_lsr`: -1 → random U(0.0, 0.3)
+- `u_ones_lsr`: -1 → random U(0.55, 0.85)
+
+**Running hierarchical training:**
+```bash
+# Set in config.yaml:
+#   conditional_training.enabled: true
+#   training.uncertain_strategy: u_ones_lsr
+#   hierarchical_inference.enabled: true
+python3 train_hierarchical.py
+```
+
+**Config toggles (all default to false/baseline):**
+- `conditional_training.enabled`: Enable two-phase CT training
+- `conditional_training.phase1_epochs` / `phase2_epochs`: Epochs per phase
+- `conditional_training.phase1_lr` / `phase2_lr`: Learning rates per phase
+- `hierarchical_inference.enabled`: Multiply conditional probs along hierarchy at inference
+
 ## Key Implementation Notes
 
 - **data/__init__.py**: Exports `ALL_CHEXPERT_LABELS`, `parse_labels_config()`, and `get_data_module()` factory. The factory reads `config['dataset']` to return the correct DataModule.
@@ -160,8 +190,11 @@ runai submit test_job python3 test.py
 - **config.yaml**: `loss.type` selects the training loss: `"bce"` or `"auc_margin"` (AUC Margin Loss from Yuan et al. 2021).
 - **config.yaml**: Optimizer hyperparameters under `optimizer:`. Checkpoint loading under `evaluation:`. Output paths under `output:`.
 - **losses/**: Loss implementations. `get_loss_function()` factory, `AUCMarginLoss`, BCE with pos_weights.
-- **densenet_model.py**: `CXRDenseNet` model class (DenseNet wrapper with torchxrayvision pretrained weights).
+- **densenet_model.py**: `CXRDenseNet` model class (DenseNet wrapper with torchxrayvision pretrained weights). Has `freeze_backbone()` / `unfreeze_all()` for conditional training Phase 2.
 - **train.py**: Trains on train_split, validates on valid_split. Uses `get_data_module()` to load the correct dataset.
-- **test.py**: Runs inference on test_split, saves predictions to CSV, prints per-label AUC (filtering uncertain labels).
+- **train_hierarchical.py**: Two-phase conditional training orchestrator (Pham et al. 2020). Phase 1: conditional subset, Phase 2: frozen backbone.
+- **test.py**: Runs inference on test_split, saves predictions to CSV, prints per-label AUC (filtering uncertain labels). Supports hierarchical inference toggle.
+- **data/hierarchy.py**: Disease hierarchy (`CHEXPERT_HIERARCHY`), `get_conditional_mask()`, `apply_hierarchical_inference()`.
+- **data/conditional_dataset.py**: `ConditionalSubset` dataset wrapper for Phase 1 filtering.
 - **calculate_conformal_pred.py**: Conformal prediction calibration using conformal_split.
 - **test_analyze.py**: Analyzes results from test.py output without requiring re-runs.

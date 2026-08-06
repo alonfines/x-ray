@@ -2,13 +2,17 @@
 
 import os
 import yaml
+import random
 import pandas as pd
 import numpy as np
 import torch
 import lightning as pl
 import torchxrayvision as xrv
 import torchvision.transforms as tforms
-from PIL import Image
+from PIL import Image, ImageFile
+
+# Allow loading truncated images (common with ongoing downloads)
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 from torch.utils.data import Dataset, DataLoader
 from typing import Optional, Tuple, List
 
@@ -25,6 +29,7 @@ class MIMICDataset(Dataset):
                  transform: Optional[tforms.Compose] = None,
                  data_aug: Optional[tforms.Compose] = None,
                  clean_uncertain: bool = True,
+                 uncertain_strategy: Optional[str] = None,
                  no_finding_preprocessing: bool = False):
 
         self.csv_path = csv_path
@@ -32,8 +37,15 @@ class MIMICDataset(Dataset):
         self.transform = transform
         self.data_aug = data_aug
         self.pathologies = pathologies
-        self.clean_uncertain = clean_uncertain
         self.no_finding_preprocessing = no_finding_preprocessing
+
+        # Resolve uncertain_strategy from explicit param or legacy clean_uncertain
+        if uncertain_strategy is not None:
+            self.uncertain_strategy = uncertain_strategy
+        elif clean_uncertain:
+            self.uncertain_strategy = "u_zeros"
+        else:
+            self.uncertain_strategy = "keep"
 
         self.df = pd.read_csv(csv_path)
 
@@ -71,8 +83,19 @@ class MIMICDataset(Dataset):
 
             if pd.isna(value):
                 labels.append(0.0)
-            elif self.clean_uncertain and float(value) == -1.0:
-                labels.append(0.0)
+            elif float(value) == -1.0:
+                if self.uncertain_strategy == "u_zeros":
+                    labels.append(0.0)
+                elif self.uncertain_strategy == "u_ones":
+                    labels.append(1.0)
+                elif self.uncertain_strategy == "u_zeros_lsr":
+                    labels.append(random.uniform(0.0, 0.3))
+                elif self.uncertain_strategy == "u_ones_lsr":
+                    labels.append(random.uniform(0.55, 0.85))
+                elif self.uncertain_strategy == "keep":
+                    labels.append(-1.0)
+                else:
+                    labels.append(0.0)
             else:
                 labels.append(float(value))
 
@@ -118,6 +141,7 @@ class MIMICDataModule(pl.LightningDataModule):
         training_config = config.get('training', {})
         self.batch_size = kwargs.get('batch_size', training_config.get('batch_size', 32))
         self.num_workers = kwargs.get('num_workers', 4)
+        self.uncertain_strategy = training_config.get('uncertain_strategy', 'u_zeros')
 
         self.train_dataset = None
         self.val_dataset = None
@@ -144,6 +168,7 @@ class MIMICDataModule(pl.LightningDataModule):
                 pathologies=self.pathologies,
                 transform=transform,
                 data_aug=augment,
+                uncertain_strategy=self.uncertain_strategy,
                 no_finding_preprocessing=self.no_finding_preprocessing
             )
 
