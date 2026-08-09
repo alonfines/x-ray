@@ -112,6 +112,13 @@ def main():
         help="Skip files that already exist",
     )
     parser.add_argument(
+        "--views",
+        type=str,
+        default="AP,PA",
+        help="Comma-separated list of view positions to download (e.g., AP,PA). "
+             "Set to 'all' to download all views.",
+    )
+    parser.add_argument(
         "--verify",
         action="store_true",
         default=False,
@@ -140,6 +147,7 @@ def main():
     FILE_LIST_CACHE = CACHE_DIR / "filelist.txt"
     SKIP_EXISTING = args.skip_existing
     SUBSETS = set(args.subset.split(",")) if args.subset else None
+    VIEWS = set(args.views.split(",")) if args.views.lower() != "all" else None
 
     # Validate credentials
     if not PHYSIONET_USERNAME or not PHYSIONET_PASSWORD:
@@ -157,6 +165,10 @@ def main():
         print(f"Download mode: Subset (subsets: {', '.join(sorted(SUBSETS))})")
     else:
         print("Download mode: Full dataset")
+    if VIEWS:
+        print(f"View filter: {', '.join(sorted(VIEWS))}")
+    else:
+        print("View filter: All views")
 
     list_file = None
     try:
@@ -202,7 +214,61 @@ def main():
                     filtered_files.append(file_path)
             all_files = filtered_files
             print(f"Filtered to subsets: {', '.join(sorted(SUBSETS))}")
-            print(f"Total files in selected subsets: {len(all_files)}\n")
+            print(f"Total files in selected subsets: {len(all_files)}")
+
+        # Filter by view position if specified
+        if VIEWS:
+            import csv
+            METADATA_FILENAME = "mimic-cxr-2.0.0-metadata.csv"
+            METADATA_CACHE = CACHE_DIR / METADATA_FILENAME
+            # Check local paths: output_dir/csv/, output_dir/, then cache
+            local_candidates = [
+                Path(OUTPUT_DIR) / "csv" / METADATA_FILENAME,
+                Path(OUTPUT_DIR) / METADATA_FILENAME,
+            ]
+            metadata_path = None
+            for candidate in local_candidates:
+                if candidate.exists():
+                    metadata_path = candidate
+                    break
+
+            if metadata_path:
+                print(f"Using local metadata from {metadata_path}")
+                METADATA_CACHE = metadata_path
+            elif METADATA_CACHE.exists():
+                print(f"Using cached metadata from {METADATA_CACHE}")
+            else:
+                print("Downloading metadata CSV for view filtering...")
+                metadata_url = f"{BASE_URL}{METADATA_FILENAME}"
+                cmd_meta = (
+                    f"wget --user {PHYSIONET_USERNAME} "
+                    f"--password {PHYSIONET_PASSWORD} "
+                    f"-O {METADATA_CACHE} {metadata_url}"
+                )
+                result = subprocess.run(cmd_meta, shell=True, capture_output=True, text=True)
+                if result.returncode != 0:
+                    print(f"✗ Failed to download metadata CSV: {result.stderr}")
+                    print("Tip: place the metadata CSV in <output-dir>/csv/ or run without --views")
+                    sys.exit(1)
+                print("Cached metadata CSV")
+
+            # Build set of dicom_ids matching desired views
+            print(f"Filtering to views: {', '.join(sorted(VIEWS))}...")
+            valid_dicom_ids = set()
+            with open(METADATA_CACHE, newline='') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row.get('ViewPosition', '') in VIEWS:
+                        valid_dicom_ids.add(row['dicom_id'])
+
+            # Filter file list: extract dicom_id from filename (stem without extension)
+            before_count = len(all_files)
+            all_files = [
+                fp for fp in all_files
+                if Path(fp).stem in valid_dicom_ids
+            ]
+            print(f"View filter: {before_count} → {len(all_files)} files "
+                  f"({before_count - len(all_files)} excluded)\n")
 
         manifest_file = Path(OUTPUT_DIR) / ".downloaded_manifest"
 
@@ -273,7 +339,7 @@ def main():
             f"--user {PHYSIONET_USERNAME} "
             f"--password {PHYSIONET_PASSWORD} "
             f"--continue "
-            f"--cut-dirs=3 "
+            f"-nH --cut-dirs=3 -x "
             f"-P {OUTPUT_DIR} "
             f"{BASE_URL}{{}} 2>/dev/null "
             f"&& echo {{}} >> {manifest_file}"
