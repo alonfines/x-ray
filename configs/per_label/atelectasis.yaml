@@ -1,0 +1,93 @@
+chkpt_callback:
+  dirpath: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label
+  filename: densenet-{epoch:02d}-{val_auroc_mean:.3f}
+  mode: max
+  monitor: val_auroc_mean
+  save_top_k: 1
+conditional_training:
+  enabled: false
+conformal:
+  alpha: 0.1
+  calibration_dir: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/per_label/atelectasis
+  q_hat_file: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/q_hat.pt
+  use_weights: false
+  weighting_scheme: uniform
+data:
+  chexpert_dir: /gpfs0/tamyr/projects/data/chest_xray/chexpert
+  conformal_split_csv: csv_files/chexpert/conformal_split.csv
+  split_ratios:
+    conformal: 0.1
+    test: 0.1
+    train: 0.7
+    validation: 0.1
+  test_split_csv: csv_files/chexpert/test_split.csv
+  train_split_csv: csv_files/chexpert/train_split.csv
+  valid_split_csv: csv_files/chexpert/valid_split.csv
+  working_dir: /gpfs0/tamyr/users/alonfi/XRay
+dataset: mimic
+evaluation:
+  checkpoint_dir: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic
+  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label/densenet-atelectasis-bce-epoch=23-val_auroc_mean=0.799.ckpt
+experiment_name: baseline
+hierarchical_inference:
+  enabled: false
+labels:
+- Atelectasis
+loss:
+  pretrained_checkpoint: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/densenet-alllabels-bce-epoch=60-val_auroc_mean=0.784.ckpt
+  reinit_classifier: true
+  type: bce
+mimic:
+  chexpert_csv: /gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.0.0-chexpert.csv
+  conformal_split_csv: csv_files/mimic/conformal_split.csv
+  data_dir: /gpfs0/tamyr/projects/data/MIMIC-CXR
+  files_dir: /gpfs0/tamyr/projects/data/MIMIC-CXR/files
+  metadata_csv: /gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.0.0-metadata.csv
+  split_ratios:
+    conformal: 0.1
+    test: 0.1
+    train: 0.7
+    validation: 0.1
+  test_labels_csv: /gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.1.0-test-set-labeled.csv
+  test_split_csv: csv_files/mimic/test_split.csv
+  train_split_csv: csv_files/mimic/train_split.csv
+  valid_split_csv: csv_files/mimic/valid_split.csv
+  views:
+  - AP
+  - PA
+optimizer:
+  lr: 0.001
+  min_lr: 1e-6
+  w_decay: 0.05
+output:
+  log_dir: /gpfs0/tamyr/users/alonfi/XRay/logs
+  results_csv: csv_files/mimic/results.csv
+trainer:
+  accelerator: gpu
+  callbacks:
+  - class_path: lightning.pytorch.callbacks.EarlyStopping
+    init_args:
+      mode: max
+      monitor: val_auroc_mean
+      patience: 15
+      verbose: true
+  - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+    init_args:
+      logging_interval: epoch
+  devices: auto
+  fast_dev_run: false
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      name: binary_atelectasis_auc
+      project: cxr_uda
+      tags:
+      - binary
+      - atelectasis
+      - bce
+  max_epochs: 60
+  precision: bf16-mixed
+training:
+  batch_size: 64
+  num_workers: 16
+  uncertain_strategy: u_zeros

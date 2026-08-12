@@ -1,0 +1,59 @@
+# Step 1: Calibrate (run these first)
+
+clear; runai-bgu delete cal-nofinding; sleep 10 && runai-bgu submit python -p alonfi -n cal-nofinding -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'No Finding'"
+
+clear; runai-bgu delete cal-enlargedcardiomediastinum; sleep 10 && runai-bgu submit python -p alonfi -n cal-enlargedcardiomediastinum -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'Enlarged Cardiomediastinum'"
+
+clear; runai-bgu delete cal-cardiomegaly; sleep 10 && runai-bgu submit python -p alonfi -n cal-cardiomegaly -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'Cardiomegaly'"
+
+clear; runai-bgu delete cal-lungopacity; sleep 10 && runai-bgu submit python -p alonfi -n cal-lungopacity -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'Lung Opacity'"
+
+clear; runai-bgu delete cal-lunglesion; sleep 10 && runai-bgu submit python -p alonfi -n cal-lunglesion -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'Lung Lesion'"
+
+clear; runai-bgu delete cal-edema; sleep 10 && runai-bgu submit python -p alonfi -n cal-edema -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'Edema'"
+
+clear; runai-bgu delete cal-consolidation; sleep 10 && runai-bgu submit python -p alonfi -n cal-consolidation -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'Consolidation'"
+
+clear; runai-bgu delete cal-atelectasis; sleep 10 && runai-bgu submit python -p alonfi -n cal-atelectasis -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'Atelectasis'"
+
+clear; runai-bgu delete cal-pneumothorax; sleep 10 && runai-bgu submit python -p alonfi -n cal-pneumothorax -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'Pneumothorax'"
+
+clear; runai-bgu delete cal-pleuraleffusion; sleep 10 && runai-bgu submit python -p alonfi -n cal-pleuraleffusion -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'Pleural Effusion'"
+
+clear; runai-bgu delete cal-pleuralother; sleep 10 && runai-bgu submit python -p alonfi -n cal-pleuralother -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'Pleural Other'"
+
+clear; runai-bgu delete cal-fracture; sleep 10 && runai-bgu submit python -p alonfi -n cal-fracture -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'Fracture'"
+
+clear; runai-bgu delete cal-supportdevices; sleep 10 && runai-bgu submit python -p alonfi -n cal-supportdevices -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py --label 'Support Devices'"
+
+# Step 2: Test (run after calibration completes)
+
+clear; runai-bgu delete test-nofinding; sleep 10 && runai-bgu submit python -p alonfi -n test-nofinding -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'No Finding'"
+
+clear; runai-bgu delete test-enlargedcardiomediastinum; sleep 10 && runai-bgu submit python -p alonfi -n test-enlargedcardiomediastinum -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'Enlarged Cardiomediastinum'"
+
+clear; runai-bgu delete test-cardiomegaly; sleep 10 && runai-bgu submit python -p alonfi -n test-cardiomegaly -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'Cardiomegaly'"
+
+clear; runai-bgu delete test-lungopacity; sleep 10 && runai-bgu submit python -p alonfi -n test-lungopacity -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'Lung Opacity'"
+
+clear; runai-bgu delete test-lunglesion; sleep 10 && runai-bgu submit python -p alonfi -n test-lunglesion -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'Lung Lesion'"
+
+clear; runai-bgu delete test-edema; sleep 10 && runai-bgu submit python -p alonfi -n test-edema -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'Edema'"
+
+clear; runai-bgu delete test-consolidation; sleep 10 && runai-bgu submit python -p alonfi -n test-consolidation -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'Consolidation'"
+
+clear; runai-bgu delete test-atelectasis; sleep 10 && runai-bgu submit python -p alonfi -n test-atelectasis -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'Atelectasis'"
+
+clear; runai-bgu delete test-pneumothorax; sleep 10 && runai-bgu submit python -p alonfi -n test-pneumothorax -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'Pneumothorax'"
+
+clear; runai-bgu delete test-pleuraleffusion; sleep 10 && runai-bgu submit python -p alonfi -n test-pleuraleffusion -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'Pleural Effusion'"
+
+clear; runai-bgu delete test-pleuralother; sleep 10 && runai-bgu submit python -p alonfi -n test-pleuralother -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'Pleural Other'"
+
+clear; runai-bgu delete test-fracture; sleep 10 && runai-bgu submit python -p alonfi -n test-fracture -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'Fracture'"
+
+clear; runai-bgu delete test-supportdevices; sleep 10 && runai-bgu submit python -p alonfi -n test-supportdevices -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py --label 'Support Devices'"
+
+# Or run all labels sequentially in one job:
+# runai-bgu submit python -p alonfi -n cal-all -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/calibrate_per_label.py"
+# runai-bgu submit python -p alonfi -n test-all -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/test_per_label.py"

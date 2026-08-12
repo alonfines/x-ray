@@ -191,10 +191,62 @@ python3 train_hierarchical.py
 - **config.yaml**: Optimizer hyperparameters under `optimizer:`. Checkpoint loading under `evaluation:`. Output paths under `output:`.
 - **losses/**: Loss implementations. `get_loss_function()` factory, `AUCMarginLoss`, BCE with pos_weights.
 - **densenet_model.py**: `CXRDenseNet` model class (DenseNet wrapper with torchxrayvision pretrained weights). Has `freeze_backbone()` / `unfreeze_all()` for conditional training Phase 2.
-- **train.py**: Trains on train_split, validates on valid_split. Uses `get_data_module()` to load the correct dataset.
+- **train.py**: Trains on train_split, validates on valid_split. Uses `get_data_module()` to load the correct dataset. Supports `reinit_classifier` (re-initialize the classifier head when loading a pretrained checkpoint) and WandB logging via `WandbLogger`.
+- **train_per_label.py**: Trains 14 independent binary (one-vs-rest) models, one per CheXpert label. Iterates sequentially, skipping labels that already have a checkpoint in `checkpoints/mimic/per_label/`. Generates per-label configs in `configs/per_label/`. Supports `--label 'Label Name'` CLI arg to train a single label.
 - **train_hierarchical.py**: Two-phase conditional training orchestrator (Pham et al. 2020). Phase 1: conditional subset, Phase 2: frozen backbone.
-- **test.py**: Runs inference on test_split, saves predictions to CSV, prints per-label AUC (filtering uncertain labels). Supports hierarchical inference toggle.
+- **test.py**: Runs inference on test_split, saves predictions CSV to `results/outputs/`, prints per-label AUC (filtering uncertain labels). Supports hierarchical inference toggle.
 - **data/hierarchy.py**: Disease hierarchy (`CHEXPERT_HIERARCHY`), `get_conditional_mask()`, `apply_hierarchical_inference()`.
 - **data/conditional_dataset.py**: `ConditionalSubset` dataset wrapper for Phase 1 filtering.
 - **calculate_conformal_pred.py**: Conformal prediction calibration using conformal_split.
-- **test_analyze.py**: Analyzes results from test.py output without requiring re-runs.
+- **results/scripts/label_distribution.py**: Reads all MIMIC split CSVs, verifies no sample overlap, generates per-split and combined label distribution bar charts saved to `results/images/`.
+- **results/scripts/auc_unified_model.py**: Reads a test inference CSV from `results/outputs/`, computes per-label AUC, and saves a bar chart to `results/images/`.
+
+## Per-Label Binary Training
+
+Trains 14 independent binary classifiers (one per CheXpert label) starting from a pretrained all-labels backbone. Each per-label model re-initializes the classifier head and trains with BCE loss.
+
+**Components:**
+- `train_per_label.py`: Orchestrator that generates per-label configs in `configs/per_label/` and calls `train.py` as a subprocess for each label.
+- `configs/per_label/`: Auto-generated YAML configs (one per label) with single-label overrides, `reinit_classifier: true`, and checkpoints under `checkpoints/mimic/per_label/`.
+- `submit_per_label_jobs.txt`: Cheat-sheet of `runai-bgu submit` commands for submitting individual per-label training jobs.
+
+**Running:**
+```bash
+# All labels sequentially (skips already-completed labels)
+python3 train_per_label.py
+
+# Single label
+python3 train_per_label.py --label 'Atelectasis'
+```
+
+## MIMIC-CXR Data Utilities
+
+### Download
+
+- **`download_mimic_cxr_gsutil.py`**: Downloads MIMIC-CXR-JPG from Google Cloud Storage (`gs://mimic-cxr-jpg-2.1.0.physionet.org`). Requires `--project-id` for GCS billing. Supports `--subset p10,p11` for partial downloads, skip-existing via `.downloaded_manifest`, `--verify` mode, and parallel downloads.
+
+### Prep Scripts (`mimic-cxr_scripts/`)
+
+- **`check_mimic_coverage.py`**: Verifies how many study records have matching images on disk; reports view distribution.
+- **`create_filtered_mimic_csv.py`**: Scans disk for existing files, applies "No Finding correction" (zeros out other pathologies when No Finding=1.0), saves `mimic_cxr_filtered.csv`.
+- **`filter_to_pa_views.py`**: Filters `mimic_cxr_filtered.csv` to frontal views (PA/AP) using metadata CSV.
+- **`reorganize_mimic_cxr.py`**: Moves flat-downloaded JPGs into the proper `files/p{XX}/p{subject_id}/s{study_id}/` hierarchy.
+
+## Results & Visualization
+
+Scripts in `results/scripts/` generate plots saved to `results/images/`. Test inference CSVs are stored in `results/outputs/mimic/`.
+
+**Running:**
+```bash
+python3 results/scripts/label_distribution.py
+python3 results/scripts/auc_unified_model.py
+```
+
+**Plot Design Guideline:** All plots must be readable by a 50-year-old woman without glasses, looking at a small laptop screen through a Zoom call. This means:
+- Large figure size (18×11 inches minimum)
+- Bold, oversized fonts: titles ≥28pt, axis labels ≥22pt, tick labels ≥18pt, annotations ≥17pt
+- High-contrast color palettes (e.g., `mako`)
+- Percentage annotations directly above each bar
+- Y-axis gridlines for readability
+- Rotated x-axis labels (45°) to avoid overlap
+- White background, 300 DPI export

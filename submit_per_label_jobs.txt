@@ -1,0 +1,27 @@
+clear; runai-bgu delete label-nofinding; sleep 10 && runai-bgu submit python -p alonfi -n label-nofinding -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'No Finding'"
+
+clear; runai-bgu delete label-enlargedcardiomediastinum; sleep 10 && runai-bgu submit python -p alonfi -n label-enlargedcardiomediastinum -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Enlarged Cardiomediastinum'"
+
+clear; runai-bgu delete label-cardiomegaly; sleep 10 && runai-bgu submit python -p alonfi -n label-cardiomegaly -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Cardiomegaly'"
+
+clear; runai-bgu delete label-lungopacity; sleep 10 && runai-bgu submit python -p alonfi -n label-lungopacity -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Lung Opacity'"
+
+clear; runai-bgu delete label-lunglesion; sleep 10 && runai-bgu submit python -p alonfi -n label-lunglesion -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Lung Lesion'"
+
+clear; runai-bgu delete label-edema; sleep 10 && runai-bgu submit python -p alonfi -n label-edema -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Edema'"
+
+clear; runai-bgu delete label-consolidation; sleep 10 && runai-bgu submit python -p alonfi -n label-consolidation -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Consolidation'"
+
+clear; runai-bgu delete label-pneumonia; sleep 10 && runai-bgu submit python -p alonfi -n label-pneumonia -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Pneumonia'"
+
+clear; runai-bgu delete label-atelectasis; sleep 10 && runai-bgu submit python -p alonfi -n label-atelectasis -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Atelectasis'"
+
+clear; runai-bgu delete label-pneumothorax; sleep 10 && runai-bgu submit python -p alonfi -n label-pneumothorax -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Pneumothorax'"
+
+clear; runai-bgu delete label-pleuraleffusion; sleep 10 && runai-bgu submit python -p alonfi -n label-pleuraleffusion -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Pleural Effusion'"
+
+clear; runai-bgu delete label-pleuralother; sleep 10 && runai-bgu submit python -p alonfi -n label-pleuralother -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Pleural Other'"
+
+clear; runai-bgu delete label-fracture; sleep 10 && runai-bgu submit python -p alonfi -n label-fracture -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Fracture'"
+
+clear; runai-bgu delete label-supportdevices; sleep 10 && runai-bgu submit python -p alonfi -n label-supportdevices -c 8 -m 32Gi -g 1 --large-shm --conda claude-env -- "python /gpfs0/tamyr/users/alonfi/XRay/train_per_label.py --label 'Support Devices'"

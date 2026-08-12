@@ -1,11 +1,11 @@
 experiment_name: baseline
 dataset: mimic
-labels: all
+labels: ["Fracture"]
 loss:
   type: bce
   auc_margin:
     margin: 1.0
-    pretrained_checkpoint: checkpoints/chexpert/densenet-alllabels-bce-epoch=39-val_auroc_mean=0.774.ckpt
+    pretrained_checkpoint: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/densenet-alllabels-bce-epoch=60-val_auroc_mean=0.784.ckpt
     reinit_classifier: true
 data:
   working_dir: /gpfs0/tamyr/users/alonfi/XRay
@@ -38,9 +38,9 @@ mimic:
     conformal: 0.1
     test: 0.1
 training:
-  batch_size: 32
+  batch_size: 64
   num_workers: 16
-  uncertain_strategy: u_zeros  # u_zeros | u_ones | u_zeros_lsr | u_ones_lsr
+  uncertain_strategy: u_ones_lsr
   task_weights:
   - 2.242
   - 3.04
@@ -53,7 +53,7 @@ optimizer:
   w_decay: 0.05
 trainer:
   fast_dev_run: false
-  max_epochs: 150
+  max_epochs: 10
   precision: bf16-mixed
   accelerator: gpu
   devices: auto
@@ -68,7 +68,7 @@ trainer:
   - class_path: lightning.pytorch.callbacks.EarlyStopping
     init_args:
       monitor: val_auroc_mean
-      patience: 30
+      patience: 5
       mode: max
       verbose: true
   - class_path: lightning.pytorch.callbacks.LearningRateMonitor
@@ -86,21 +86,18 @@ conformal:
   weighting_scheme: uniform
   calibration_dir: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic
   q_hat_file: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/q_hat.pt
-# Conditional training (Pham et al. 2020) - run via train_hierarchical.py
 conditional_training:
-  enabled: false
-  phase1_epochs: 5
-  phase2_epochs: 5
+  enabled: true
+  phase1_epochs: 25
+  phase2_epochs: 40
   phase1_lr: 0.001
   phase2_lr: 0.0001
+  pretrained_checkpoint: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/densenet-alllabels-bce-epoch=60-val_auroc_mean=0.784.ckpt
   phase1_checkpoint_dir: checkpoints/ct_phase1
-
-# Hierarchical inference - multiply probs along disease hierarchy at test time
 hierarchical_inference:
-  enabled: false
-
+  enabled: true
 evaluation:
-  checkpoint_path: null
+  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/densenet-alllabels-bce-epoch=60-val_auroc_mean=0.784.ckpt
   checkpoint_dir: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic
 output:
   log_dir: /gpfs0/tamyr/users/alonfi/XRay/logs

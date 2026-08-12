@@ -35,7 +35,9 @@ def find_existing_images(files_dir):
                     continue
                 for fname in os.listdir(study_path):
                     if fname.endswith('.jpg'):
-                        existing.add(fname[:-4])  # strip .jpg
+                        fpath = os.path.join(study_path, fname)
+                        if os.path.getsize(fpath) > 0:
+                            existing.add(fname[:-4])  # strip .jpg
     return existing
 
 

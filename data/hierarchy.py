@@ -32,10 +32,12 @@ CHEXPERT_HIERARCHY = {
 
 
 def get_conditional_mask(df: pd.DataFrame, pathologies: List[str]) -> pd.Series:
-    """Return a boolean mask over rows where all parent labels are positive (1.0).
+    """Return a boolean mask over rows valid for conditional training.
 
-    For Phase 1 of conditional training: keeps only samples where every parent
-    label (for every active pathology that has parents) equals 1.0.
+    A row is included if it satisfies the parent-positive requirement for
+    AT LEAST ONE child label (union across subtrees). For each child with
+    parents, all its parents must be 1.0. A row that qualifies for any
+    subtree is kept. Root-level labels (no parents) don't constrain the filter.
 
     Args:
         df: DataFrame with pathology columns.
@@ -44,14 +46,28 @@ def get_conditional_mask(df: pd.DataFrame, pathologies: List[str]) -> pd.Series:
     Returns:
         Boolean Series — True for rows to include in conditional training.
     """
-    mask = pd.Series(True, index=df.index)
+    # Collect per-subtree masks, then OR them together
+    subtree_masks = []
 
     for pathology in pathologies:
         parents = CHEXPERT_HIERARCHY.get(pathology, [])
+        if not parents:
+            continue
+        # This child requires ALL its parents to be positive
+        child_mask = pd.Series(True, index=df.index)
         for parent in parents:
             if parent in df.columns:
-                # Parent must be exactly 1.0 (positive)
-                mask = mask & (df[parent] == 1.0)
+                child_mask = child_mask & (df[parent] == 1.0)
+        subtree_masks.append(child_mask)
+
+    if not subtree_masks:
+        # No child labels with parents in the active set — keep everything
+        return pd.Series(True, index=df.index)
+
+    # Union: row qualifies if valid for ANY subtree
+    mask = subtree_masks[0]
+    for m in subtree_masks[1:]:
+        mask = mask | m
 
     return mask
 

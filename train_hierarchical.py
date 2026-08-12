@@ -54,6 +54,7 @@ def train_hierarchical():
     pathologies, use_all = parse_labels_config(config)
     label_suffix = 'alllabels' if use_all else '5labels'
     loss_type = config.get('loss', {}).get('type', 'bce')
+    uncertain_strategy = config.get('training', {}).get('uncertain_strategy', 'u_zeros')
 
     # Shared WandB logger for both phases
     wandb_logger = WandbLogger(
@@ -78,17 +79,31 @@ def train_hierarchical():
 
     # Wrap with conditional filter
     conditional_dataset = ConditionalSubset(full_train_dataset, pathologies)
-    data_module.train_dataset = conditional_dataset
 
-    # Create model with Phase 1 learning rate
-    model = CXRClassifier(config_path=config_path)
+    # Override train_dataloader to use conditional subset
+    # (can't just swap train_dataset because Lightning's setup() would overwrite it)
+    _original_train_dataloader = data_module.train_dataloader
+    def _conditional_train_dataloader():
+        return DataLoader(conditional_dataset, batch_size=data_module.batch_size,
+                          num_workers=data_module.num_workers, shuffle=True, pin_memory=True)
+    data_module.train_dataloader = _conditional_train_dataloader
+
+    # Create model, optionally loading from pretrained checkpoint
+    pretrained_ckpt = ct_config.get('pretrained_checkpoint')
+    if pretrained_ckpt:
+        if not os.path.isabs(pretrained_ckpt):
+            pretrained_ckpt = os.path.join(working_dir, pretrained_ckpt)
+        print(f"  Loading pretrained checkpoint: {pretrained_ckpt}")
+        model = CXRClassifier.load_from_checkpoint(pretrained_ckpt, strict=False, config_path=config_path)
+    else:
+        model = CXRClassifier(config_path=config_path)
     model.learning_rate = phase1_lr
 
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
 
     phase1_checkpoint = ModelCheckpoint(
         dirpath=phase1_checkpoint_dir,
-        filename=f'densenet-{label_suffix}-{loss_type}-ct_phase1-' + '{epoch:02d}-{val_auroc_mean:.3f}',
+        filename=f'densenet-{label_suffix}-{loss_type}-ct_phase1-{uncertain_strategy}-' + '{epoch:02d}-{val_auroc_mean:.3f}',
         monitor='val_auroc_mean',
         mode='max',
         save_top_k=1
@@ -117,12 +132,12 @@ def train_hierarchical():
     print("PHASE 2: Fine-tuning on full dataset (frozen backbone)")
     print("=" * 70)
 
-    # Restore full training dataset
-    data_module.train_dataset = full_train_dataset
+    # Restore full training dataloader
+    data_module.train_dataloader = _original_train_dataloader
     print(f"  Restored full training set: {len(full_train_dataset)} samples")
 
     # Load best Phase 1 checkpoint
-    model = CXRClassifier.load_from_checkpoint(best_phase1_path, config_path=config_path)
+    model = CXRClassifier.load_from_checkpoint(best_phase1_path, strict=False, config_path=config_path)
 
     # Freeze backbone, only train classifier head
     model.model.freeze_backbone()
@@ -152,7 +167,7 @@ def train_hierarchical():
     lr_monitor_p2 = LearningRateMonitor(logging_interval='epoch')
 
     base_filename = chkpt_config.get('filename', 'densenet-{epoch:02d}-{val_loss:.3f}')
-    checkpoint_filename = base_filename.replace('densenet-', f'densenet-{label_suffix}-{loss_type}-ct-', 1)
+    checkpoint_filename = base_filename.replace('densenet-', f'densenet-{label_suffix}-{loss_type}-ct-{uncertain_strategy}-', 1)
 
     phase2_checkpoint = ModelCheckpoint(
         dirpath=chkpt_config.get('dirpath', './checkpoints'),

@@ -120,9 +120,12 @@ def test_inference(config_path: str = "config.yaml"):
 
     # Save to CSV
     print("\n[4] Saving results...")
-    results_csv = output_config.get('results_csv', 'results.csv')
-    csv_path = os.path.join(working_dir, results_csv)
-    save_results_to_csv(all_predictions, all_true_labels, pathologies, csv_path)
+    dataset_name = config.get('dataset', 'chexpert')
+    checkpoint_stem = checkpoint_file.stem
+    output_dir = Path(working_dir) / "results" / "outputs" / dataset_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = output_dir / f"{checkpoint_stem}.csv"
+    save_results_to_csv(all_predictions, all_true_labels, pathologies, str(csv_path))
 
     # Compute and print AUC per label
     print("\n[5] AUC Results:")
