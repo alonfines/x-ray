@@ -94,6 +94,8 @@ conditional_training:
   phase2_lr: 0.0001
   pretrained_checkpoint: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/densenet-alllabels-bce-epoch=60-val_auroc_mean=0.784.ckpt
   phase1_checkpoint_dir: checkpoints/ct_phase1
+hierarchy_correction:
+  enabled: false
 hierarchical_inference:
   enabled: true
 evaluation:

@@ -286,8 +286,9 @@ def train(config_path: str = "/gpfs0/tamyr/users/alonfi/XRay/config.yaml"):
     else:
         label_suffix = f'{len(pathologies)}labels'
     loss_type = config.get('loss', {}).get('type', 'bce')
+    hier_suffix = '-hier' if config.get('hierarchy_correction', {}).get('enabled', False) else ''
     base_filename = chkpt_config.get('filename', 'densenet-{epoch:02d}-{val_loss:.3f}')
-    checkpoint_filename = base_filename.replace('densenet-', f'densenet-{label_suffix}-{loss_type}-', 1)
+    checkpoint_filename = base_filename.replace('densenet-', f'densenet-{label_suffix}-{loss_type}{hier_suffix}-', 1)
 
     checkpoint = ModelCheckpoint(
         dirpath=chkpt_config.get('dirpath', './checkpoints'),

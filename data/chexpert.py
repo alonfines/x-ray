@@ -147,6 +147,7 @@ class CheXpertDataModule(pl.LightningDataModule):
         self.batch_size = kwargs.get('batch_size', training_config.get('batch_size', 32))
         self.num_workers = kwargs.get('num_workers', 4)
         self.uncertain_strategy = training_config.get('uncertain_strategy', 'u_zeros')
+        self.hierarchy_correction = config.get('hierarchy_correction', {}).get('enabled', False)
 
         self.train_dataset = None
         self.val_dataset = None
@@ -207,6 +208,13 @@ class CheXpertDataModule(pl.LightningDataModule):
                 clean_uncertain=False,
                 no_finding_preprocessing=self.no_finding_preprocessing
             )
+
+        # Apply hierarchy correction to train/val/conformal (NOT test)
+        if self.hierarchy_correction:
+            from data.hierarchy import apply_hierarchy_correction_to_df
+            for ds in [self.train_dataset, self.val_dataset, self.conformal_dataset]:
+                if ds is not None:
+                    apply_hierarchy_correction_to_df(ds.df)
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True, pin_memory=True)

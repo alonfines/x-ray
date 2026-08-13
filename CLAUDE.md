@@ -148,12 +148,55 @@ runai submit test_job python3 test.py
 - All scripts automatically use the correct DataModule via `get_data_module()`
 - Update paths in the `data:` or `mimic:` sections of config.yaml as needed
 
+## Hierarchy Label Correction
+
+CheXpert labels suffer from a labeling artifact: when a child finding is positive but the parent was "not mentioned" in the report, the parent gets NaN (mapped to 0). This creates contradictory training signals (e.g., Edema=1 but Lung Opacity=0). Analysis of the MIMIC training set shows 52-96% of child-positive samples have missing parent labels.
+
+**Hierarchy correction** propagates child-positive → parent-positive during training. When `hierarchy_correction.enabled: true`, the DataModule corrects labels in the DataFrame after loading (train/val/conformal splits only — test labels stay original for honest evaluation).
+
+**Disease hierarchy** (defined in `data/hierarchy.py`):
+- Enlarged Cardiomediastinum ← Cardiomegaly
+- Lung Opacity ← Lung Lesion, Edema, Consolidation, Atelectasis
+- Lung Opacity + Consolidation ← Pneumonia
+
+**Implementation:**
+- `data/hierarchy.py`: `apply_hierarchy_correction_to_df()` corrects a DataFrame in-place. Only definite positives (1.0) trigger propagation — uncertain (-1) and NaN do not.
+- `data/mimic.py` / `data/chexpert.py`: Both DataModules read `hierarchy_correction.enabled` from config and apply correction in `setup()`.
+- `train.py`: Adds `-hier-` suffix to checkpoint filenames when hierarchy correction is enabled.
+- `utils.py`: Parallel constants (`CHECKPOINT_DIR_HIER`, `OUTPUT_BASE_HIER`, etc.) and parameterized helpers (`find_checkpoint(hierarchy=True)`, `generate_config(hierarchy=True)`).
+
+**Separate pathway:** Hierarchy-corrected models use entirely separate directories to avoid overwriting existing results:
+- Configs: `configs/per_label_hier/`
+- Checkpoints: `checkpoints/mimic/per_label_hier/`
+- Conformal output: `conformal_calibration/mimic/per_label_hier/` and `per_label_hier_with_val/`
+
+**Running (per-label):**
+```bash
+# Train with hierarchy correction
+python3 train_per_label.py --label 'Edema' --hierarchy
+
+# Calibrate (after training)
+python3 calibrate_per_label.py --label 'Edema' --hierarchy
+
+# Test (after calibration)
+python3 test_per_label.py --label 'Edema' --hierarchy
+
+# Omit --label to process all labels
+# Combine with --include-val for conformal+validation calibration
+```
+
+**Running (unified model):** Set `hierarchy_correction.enabled: true` in config.yaml, then run `python3 train.py`.
+
+**Job submissions:** `submit_per_label_hier_jobs.txt` contains runai-bgu commands for all 14 labels.
+
+**Note:** Labels without hierarchy parents (Pneumothorax, Pleural Effusion, Fracture, Support Devices, No Finding) are unaffected by `--hierarchy`. Training them with the flag is harmless but produces identical results.
+
 ## Hierarchical Conditional Training (Pham et al. 2020)
 
 Implements the method from "Interpreting chest X-rays via CNNs that exploit hierarchical disease dependencies and uncertainty labels."
 
 **Components:**
-- `data/hierarchy.py`: Disease hierarchy definition (`CHEXPERT_HIERARCHY`), conditional mask, and `apply_hierarchical_inference()`.
+- `data/hierarchy.py`: Disease hierarchy definition (`CHEXPERT_HIERARCHY`), conditional mask, `apply_hierarchical_inference()`, and `apply_hierarchy_correction_to_df()`.
 - `data/conditional_dataset.py`: `ConditionalSubset` wrapper that filters to parent-positive samples for Phase 1.
 - `train_hierarchical.py`: Two-phase training orchestrator (Phase 1: conditional subset, Phase 2: frozen backbone + full data).
 
@@ -173,6 +216,7 @@ python3 train_hierarchical.py
 ```
 
 **Config toggles (all default to false/baseline):**
+- `hierarchy_correction.enabled`: Propagate child-positive → parent-positive labels during training (applied to train/val/conformal, not test)
 - `conditional_training.enabled`: Enable two-phase CT training
 - `conditional_training.phase1_epochs` / `phase2_epochs`: Epochs per phase
 - `conditional_training.phase1_lr` / `phase2_lr`: Learning rates per phase
@@ -192,31 +236,42 @@ python3 train_hierarchical.py
 - **losses/**: Loss implementations. `get_loss_function()` factory, `AUCMarginLoss`, BCE with pos_weights.
 - **densenet_model.py**: `CXRDenseNet` model class (DenseNet wrapper with torchxrayvision pretrained weights). Has `freeze_backbone()` / `unfreeze_all()` for conditional training Phase 2.
 - **train.py**: Trains on train_split, validates on valid_split. Uses `get_data_module()` to load the correct dataset. Supports `reinit_classifier` (re-initialize the classifier head when loading a pretrained checkpoint) and WandB logging via `WandbLogger`.
-- **train_per_label.py**: Trains 14 independent binary (one-vs-rest) models, one per CheXpert label. Iterates sequentially, skipping labels that already have a checkpoint in `checkpoints/mimic/per_label/`. Generates per-label configs in `configs/per_label/`. Supports `--label 'Label Name'` CLI arg to train a single label.
+- **utils.py**: Shared utilities for per-label scripts. Exports `ALL_LABELS`, `PROJECT_ROOT`, `CHECKPOINT_DIR`, `OUTPUT_BASE` (and `*_HIER` variants), `safe_name()`, `find_checkpoint(hierarchy=)`, `generate_config(hierarchy=)`, `parse_labels()`.
+- **train_per_label.py**: Trains 14 independent binary (one-vs-rest) models, one per CheXpert label. Iterates sequentially, skipping labels that already have a checkpoint in `checkpoints/mimic/per_label/`. Supports `--label 'Label Name'` and `--hierarchy` CLI args.
+- **calibrate_per_label.py**: Calibrates BCOPS conformal thresholds per label. Caches model predictions for efficient re-calibration. Supports `--hierarchy` flag. Outputs `bcops_thresholds.pt` per label.
+- **test_per_label.py**: Tests per-label models with BCOPS conformal predictions. Supports `--hierarchy` flag. Outputs CSV results and 3x3 confusion matrix PNGs (true Positive/Uncertain/Negative vs predicted).
 - **train_hierarchical.py**: Two-phase conditional training orchestrator (Pham et al. 2020). Phase 1: conditional subset, Phase 2: frozen backbone.
 - **test.py**: Runs inference on test_split, saves predictions CSV to `results/outputs/`, prints per-label AUC (filtering uncertain labels). Supports hierarchical inference toggle.
-- **data/hierarchy.py**: Disease hierarchy (`CHEXPERT_HIERARCHY`), `get_conditional_mask()`, `apply_hierarchical_inference()`.
+- **data/hierarchy.py**: Disease hierarchy (`CHEXPERT_HIERARCHY`), `get_conditional_mask()`, `apply_hierarchical_inference()`, `apply_hierarchy_correction_to_df()`.
 - **data/conditional_dataset.py**: `ConditionalSubset` dataset wrapper for Phase 1 filtering.
 - **calculate_conformal_pred.py**: Conformal prediction calibration using conformal_split.
 - **results/scripts/label_distribution.py**: Reads all MIMIC split CSVs, verifies no sample overlap, generates per-split and combined label distribution bar charts saved to `results/images/`.
 - **results/scripts/auc_unified_model.py**: Reads a test inference CSV from `results/outputs/`, computes per-label AUC, and saves a bar chart to `results/images/`.
 
-## Per-Label Binary Training
+## Per-Label Binary Pipeline
 
-Trains 14 independent binary classifiers (one per CheXpert label) starting from a pretrained all-labels backbone. Each per-label model re-initializes the classifier head and trains with BCE loss.
+Trains 14 independent binary classifiers (one per CheXpert label) starting from a pretrained all-labels backbone. Each per-label model re-initializes the classifier head and trains with BCE loss. After training, BCOPS conformal thresholds are calibrated and tested.
 
 **Components:**
-- `train_per_label.py`: Orchestrator that generates per-label configs in `configs/per_label/` and calls `train.py` as a subprocess for each label.
-- `configs/per_label/`: Auto-generated YAML configs (one per label) with single-label overrides, `reinit_classifier: true`, and checkpoints under `checkpoints/mimic/per_label/`.
-- `submit_per_label_jobs.txt`: Cheat-sheet of `runai-bgu submit` commands for submitting individual per-label training jobs.
+- `utils.py`: Shared constants (`ALL_LABELS`, `CHECKPOINT_DIR`, `OUTPUT_BASE`, and `*_HIER` variants) and helpers (`safe_name()`, `find_checkpoint(hierarchy=)`, `generate_config(hierarchy=)`, `parse_labels()`).
+- `train_per_label.py`: Training orchestrator. Calls `train.py` as a subprocess for each label.
+- `calibrate_per_label.py`: Calibrates BCOPS conformal thresholds per label using the conformal split. Caches model predictions for efficient re-calibration with different alpha.
+- `test_per_label.py`: Tests per-label models, applies BCOPS thresholds, outputs CSV + 3x3 confusion matrix PNG per label.
+- `configs/per_label/`: Auto-generated YAML configs (one per label).
 
 **Running:**
 ```bash
-# All labels sequentially (skips already-completed labels)
-python3 train_per_label.py
-
-# Single label
+# Train
 python3 train_per_label.py --label 'Atelectasis'
+
+# Calibrate (after training)
+python3 calibrate_per_label.py --label 'Atelectasis'
+
+# Test (after calibration)
+python3 test_per_label.py --label 'Atelectasis'
+
+# Omit --label to process all labels
+# Add --hierarchy to use hierarchy label correction (separate checkpoints/output dirs)
 ```
 
 ## MIMIC-CXR Data Utilities

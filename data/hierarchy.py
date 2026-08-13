@@ -31,6 +31,27 @@ CHEXPERT_HIERARCHY = {
 }
 
 
+def apply_hierarchy_correction_to_df(df: pd.DataFrame) -> None:
+    """Propagate child-positive -> parent-positive labels in a DataFrame (in-place).
+
+    When a child label is definitively positive (1.0) but its parent is NaN
+    (not mentioned) or 0.0, the parent is set to 1.0.  This corrects the
+    labeling artifact where radiologists annotate a specific finding without
+    explicitly noting its logically implied parent.
+
+    Only definite positives (1.0) trigger propagation — uncertain (-1.0)
+    and NaN values do not.
+    """
+    for child, parents in CHEXPERT_HIERARCHY.items():
+        if child not in df.columns or not parents:
+            continue
+        child_positive = df[child] == 1.0
+        for parent in parents:
+            if parent in df.columns:
+                mask = child_positive & (df[parent].isna() | (df[parent] == 0.0))
+                df.loc[mask, parent] = 1.0
+
+
 def get_conditional_mask(df: pd.DataFrame, pathologies: List[str]) -> pd.Series:
     """Return a boolean mask over rows valid for conditional training.
 
