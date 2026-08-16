@@ -159,6 +159,13 @@ def test_single_label(label: str, base_config: dict,
         other_dir = OUTPUT_BASE_HIER / name if include_val else OUTPUT_BASE_WITH_VAL_HIER / name
     other_predictions = other_dir / f'{checkpoint.stem}_test.pt'
 
+    # Hierarchy correction changes test labels, so cached predictions are stale
+    if hierarchy:
+        for cached_file in [predictions_file, other_predictions]:
+            if cached_file.exists():
+                cached_file.unlink()
+                print(f"  Deleted stale cache (hierarchy mode): {cached_file}")
+
     if predictions_file.exists():
         print(f"  Loading cached predictions: {predictions_file}")
         cached = torch.load(predictions_file, weights_only=True)
@@ -209,10 +216,9 @@ def test_single_label(label: str, base_config: dict,
 
     print(f"  Inference complete: {len(all_probs)} samples")
 
-    # Use labels directly from the DataModule — no hierarchy correction.
-    # The model was trained without hierarchy propagation, so test labels
-    # must match what the model learned. The test DataModule preserves
-    # uncertain labels (-1) for the 3x3 confusion matrix.
+    # When --hierarchy is used, the DataModule applies hierarchy correction
+    # to test labels (child-positive → parent-positive). Uncertain labels
+    # (-1) are preserved for the 3x3 confusion matrix.
 
     bcops_preds = apply_bcops(all_probs, presence_thresh, absence_thresh)
 

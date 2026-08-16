@@ -8,7 +8,7 @@ conditional_training:
   enabled: false
 conformal:
   alpha: 0.1
-  calibration_dir: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/per_label/no_finding
+  calibration_dir: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/per_label_with_val/no_finding
   q_hat_file: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/q_hat.pt
   use_weights: false
   weighting_scheme: uniform

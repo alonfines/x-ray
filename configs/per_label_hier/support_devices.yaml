@@ -1,5 +1,5 @@
 chkpt_callback:
-  dirpath: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label
+  dirpath: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label_hier
   filename: densenet-{epoch:02d}-{val_auroc_mean:.3f}
   mode: max
   monitor: val_auroc_mean
@@ -8,7 +8,7 @@ conditional_training:
   enabled: false
 conformal:
   alpha: 0.1
-  calibration_dir: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/per_label_with_val/cardiomegaly
+  calibration_dir: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/per_label_hier/support_devices
   q_hat_file: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/q_hat.pt
   use_weights: false
   weighting_scheme: uniform
@@ -27,12 +27,14 @@ data:
 dataset: mimic
 evaluation:
   checkpoint_dir: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic
-  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label/densenet-cardiomegaly-bce-epoch=10-val_auroc_mean=0.811.ckpt
+  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label_hier/densenet-support_devices-bce-hier-epoch=12-val_auroc_mean=0.881.ckpt
 experiment_name: baseline
 hierarchical_inference:
   enabled: false
+hierarchy_correction:
+  enabled: true
 labels:
-- Cardiomegaly
+- Support Devices
 loss:
   pretrained_checkpoint: null
   reinit_classifier: false
@@ -79,12 +81,13 @@ trainer:
   logger:
     class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
-      name: binary_cardiomegaly_auc
+      name: binary_support_devices_hier_auc
       project: cxr_uda
       tags:
       - binary
-      - cardiomegaly
+      - support_devices
       - bce
+      - hierarchy
   max_epochs: 60
   precision: bf16-mixed
 training:

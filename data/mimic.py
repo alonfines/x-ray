@@ -204,10 +204,10 @@ class MIMICDataModule(pl.LightningDataModule):
                 no_finding_preprocessing=self.no_finding_preprocessing
             )
 
-        # Apply hierarchy correction to train/val/conformal (NOT test)
+        # Apply hierarchy correction to all splits
         if self.hierarchy_correction:
             from data.hierarchy import apply_hierarchy_correction_to_df
-            for ds in [self.train_dataset, self.val_dataset, self.conformal_dataset]:
+            for ds in [self.train_dataset, self.val_dataset, self.conformal_dataset, self.test_dataset]:
                 if ds is not None:
                     apply_hierarchy_correction_to_df(ds.df)
 

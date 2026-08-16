@@ -24,7 +24,7 @@ UNIFIED_CSV = (
     / "densenet-alllabels-bce-epoch=60-val_auroc_mean=0.784.csv"
 )
 
-PER_LABEL_DIR = PROJECT_ROOT / "conformal_calibration" / "mimic" / "per_label"
+PER_LABEL_DIR = PROJECT_ROOT / "conformal_calibration" / "mimic" / "per_label_hier"
 
 IMAGE_DIR = PROJECT_ROOT / "results" / "images"
 IMAGE_DIR.mkdir(parents=True, exist_ok=True)

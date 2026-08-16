@@ -8,7 +8,7 @@ conditional_training:
   enabled: false
 conformal:
   alpha: 0.1
-  calibration_dir: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/per_label/consolidation
+  calibration_dir: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/per_label_with_val/consolidation
   q_hat_file: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/q_hat.pt
   use_weights: false
   weighting_scheme: uniform
@@ -34,8 +34,8 @@ hierarchical_inference:
 labels:
 - Consolidation
 loss:
-  pretrained_checkpoint: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/densenet-alllabels-bce-epoch=60-val_auroc_mean=0.784.ckpt
-  reinit_classifier: true
+  pretrained_checkpoint: null
+  reinit_classifier: false
   type: bce
 mimic:
   chexpert_csv: /gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.0.0-chexpert.csv
