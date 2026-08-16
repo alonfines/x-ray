@@ -3,8 +3,6 @@
 Provides dataset and DataModule implementations for CheXpert and MIMIC-CXR-JPG.
 """
 
-from typing import List, Tuple
-
 # All 13 CheXpert pathologies (excluding No Finding)
 ALL_CHEXPERT_LABELS = [
     "Enlarged Cardiomediastinum", "Cardiomegaly", "Lung Opacity", "Lung Lesion",

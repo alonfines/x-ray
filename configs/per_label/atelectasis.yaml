@@ -4,8 +4,6 @@ chkpt_callback:
   mode: max
   monitor: val_auroc_mean
   save_top_k: 1
-conditional_training:
-  enabled: false
 conformal:
   alpha: 0.1
   calibration_dir: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/per_label_with_val/atelectasis
@@ -29,8 +27,6 @@ evaluation:
   checkpoint_dir: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic
   checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label/densenet-atelectasis-bce-epoch=23-val_auroc_mean=0.799.ckpt
 experiment_name: baseline
-hierarchical_inference:
-  enabled: false
 labels:
 - Atelectasis
 loss:

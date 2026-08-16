@@ -4,7 +4,6 @@ Filter MIMIC-CXR CSV to only include PA and AP view records based on metadata.
 """
 import pandas as pd
 from pathlib import Path
-from tqdm import tqdm
 
 def main():
     """Filter to PA and AP view records."""
