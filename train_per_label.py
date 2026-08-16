@@ -14,7 +14,7 @@ import subprocess
 import yaml
 
 from utils import (
-    ALL_LABELS, BASE_CONFIG, PROJECT_ROOT,
+    BASE_CONFIG, PROJECT_ROOT,
     find_checkpoint, generate_config, parse_labels,
 )
 

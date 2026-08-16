@@ -8,16 +8,18 @@ grouped bar chart showing both side by side with the AUC delta annotated.
 
 Plot design: readable by a 50-year-old without glasses on a small laptop via Zoom.
 """
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 from sklearn.metrics import roc_auc_score
 
 # ── Paths ────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+from utils import safe_name
 
 UNIFIED_CSV = (
     PROJECT_ROOT / "results" / "outputs" / "mimic"
@@ -42,10 +44,6 @@ TITLE_SIZE = 28
 AXIS_LABEL_SIZE = 22
 TICK_SIZE = 18
 ANNOTATION_SIZE = 15
-
-
-def safe_name(label: str) -> str:
-    return label.replace(" ", "_").lower()
 
 
 def compute_unified_aucs(df):

@@ -16,6 +16,7 @@ All dataset logic lives in the `data/` package:
 data/
 ├── __init__.py          # Shared constants (ALL_CHEXPERT_LABELS), parse_labels_config(), get_data_module() factory
 ├── split_utils.py       # Shared stratification & statistics helpers
+├── hierarchy.py         # Disease hierarchy definition & label correction
 ├── chexpert.py          # CheXpertDataset + CheXpertDataModule
 ├── chexpert_split.py    # CheXpert splitting script
 ├── mimic.py             # MIMICDataset + MIMICDataModule
@@ -152,7 +153,7 @@ runai submit test_job python3 test.py
 
 CheXpert labels suffer from a labeling artifact: when a child finding is positive but the parent was "not mentioned" in the report, the parent gets NaN (mapped to 0). This creates contradictory training signals (e.g., Edema=1 but Lung Opacity=0). Analysis of the MIMIC training set shows 52-96% of child-positive samples have missing parent labels.
 
-**Hierarchy correction** propagates child-positive → parent-positive during training. When `hierarchy_correction.enabled: true`, the DataModule corrects labels in the DataFrame after loading (train/val/conformal splits only — test labels stay original for honest evaluation).
+**Hierarchy correction** propagates child-positive → parent-positive. When `hierarchy_correction.enabled: true`, the DataModule corrects labels in the DataFrame after loading (all splits including test).
 
 **Disease hierarchy** (defined in `data/hierarchy.py`):
 - Enlarged Cardiomediastinum ← Cardiomegaly
@@ -191,37 +192,6 @@ python3 test_per_label.py --label 'Edema' --hierarchy
 
 **Note:** Labels without hierarchy parents (Pneumothorax, Pleural Effusion, Fracture, Support Devices, No Finding) are unaffected by `--hierarchy`. Training them with the flag is harmless but produces identical results.
 
-## Hierarchical Conditional Training (Pham et al. 2020)
-
-Implements the method from "Interpreting chest X-rays via CNNs that exploit hierarchical disease dependencies and uncertainty labels."
-
-**Components:**
-- `data/hierarchy.py`: Disease hierarchy definition (`CHEXPERT_HIERARCHY`), conditional mask, `apply_hierarchical_inference()`, and `apply_hierarchy_correction_to_df()`.
-- `data/conditional_dataset.py`: `ConditionalSubset` wrapper that filters to parent-positive samples for Phase 1.
-- `train_hierarchical.py`: Two-phase training orchestrator (Phase 1: conditional subset, Phase 2: frozen backbone + full data).
-
-**Uncertain label strategies** (set via `training.uncertain_strategy` in config.yaml):
-- `u_zeros` (default, backward-compatible): -1 → 0.0
-- `u_ones`: -1 → 1.0
-- `u_zeros_lsr`: -1 → random U(0.0, 0.3)
-- `u_ones_lsr`: -1 → random U(0.55, 0.85)
-
-**Running hierarchical training:**
-```bash
-# Set in config.yaml:
-#   conditional_training.enabled: true
-#   training.uncertain_strategy: u_ones_lsr
-#   hierarchical_inference.enabled: true
-python3 train_hierarchical.py
-```
-
-**Config toggles (all default to false/baseline):**
-- `hierarchy_correction.enabled`: Propagate child-positive → parent-positive labels during training (applied to train/val/conformal, not test)
-- `conditional_training.enabled`: Enable two-phase CT training
-- `conditional_training.phase1_epochs` / `phase2_epochs`: Epochs per phase
-- `conditional_training.phase1_lr` / `phase2_lr`: Learning rates per phase
-- `hierarchical_inference.enabled`: Multiply conditional probs along hierarchy at inference
-
 ## Key Implementation Notes
 
 - **data/__init__.py**: Exports `ALL_CHEXPERT_LABELS`, `parse_labels_config()`, and `get_data_module()` factory. The factory reads `config['dataset']` to return the correct DataModule.
@@ -234,16 +204,14 @@ python3 train_hierarchical.py
 - **config.yaml**: `loss.type` selects the training loss: `"bce"` or `"auc_margin"` (AUC Margin Loss from Yuan et al. 2021).
 - **config.yaml**: Optimizer hyperparameters under `optimizer:`. Checkpoint loading under `evaluation:`. Output paths under `output:`.
 - **losses/**: Loss implementations. `get_loss_function()` factory, `AUCMarginLoss`, BCE with pos_weights.
-- **densenet_model.py**: `CXRDenseNet` model class (DenseNet wrapper with torchxrayvision pretrained weights). Has `freeze_backbone()` / `unfreeze_all()` for conditional training Phase 2.
+- **densenet_model.py**: `CXRDenseNet` model class (DenseNet wrapper with torchxrayvision pretrained weights).
 - **train.py**: Trains on train_split, validates on valid_split. Uses `get_data_module()` to load the correct dataset. Supports `reinit_classifier` (re-initialize the classifier head when loading a pretrained checkpoint) and WandB logging via `WandbLogger`.
 - **utils.py**: Shared utilities for per-label scripts. Exports `ALL_LABELS`, `PROJECT_ROOT`, `CHECKPOINT_DIR`, `OUTPUT_BASE` (and `*_HIER` variants), `safe_name()`, `find_checkpoint(hierarchy=)`, `generate_config(hierarchy=)`, `parse_labels()`.
 - **train_per_label.py**: Trains 14 independent binary (one-vs-rest) models, one per CheXpert label. Iterates sequentially, skipping labels that already have a checkpoint in `checkpoints/mimic/per_label/`. Supports `--label 'Label Name'` and `--hierarchy` CLI args.
 - **calibrate_per_label.py**: Calibrates BCOPS conformal thresholds per label. Caches model predictions for efficient re-calibration. Supports `--hierarchy` flag. Outputs `bcops_thresholds.pt` per label.
 - **test_per_label.py**: Tests per-label models with BCOPS conformal predictions. Supports `--hierarchy` flag. Outputs CSV results and 3x3 confusion matrix PNGs (true Positive/Uncertain/Negative vs predicted).
-- **train_hierarchical.py**: Two-phase conditional training orchestrator (Pham et al. 2020). Phase 1: conditional subset, Phase 2: frozen backbone.
-- **test.py**: Runs inference on test_split, saves predictions CSV to `results/outputs/`, prints per-label AUC (filtering uncertain labels). Supports hierarchical inference toggle.
-- **data/hierarchy.py**: Disease hierarchy (`CHEXPERT_HIERARCHY`), `get_conditional_mask()`, `apply_hierarchical_inference()`, `apply_hierarchy_correction_to_df()`.
-- **data/conditional_dataset.py**: `ConditionalSubset` dataset wrapper for Phase 1 filtering.
+- **test.py**: Runs inference on test_split, saves predictions CSV to `results/outputs/`, prints per-label AUC (filtering uncertain labels).
+- **data/hierarchy.py**: Disease hierarchy (`CHEXPERT_HIERARCHY`), `apply_hierarchy_correction_to_df()`.
 - **calculate_conformal_pred.py**: Conformal prediction calibration using conformal_split.
 - **results/scripts/label_distribution.py**: Reads all MIMIC split CSVs, verifies no sample overlap, generates per-split and combined label distribution bar charts saved to `results/images/`.
 - **results/scripts/auc_unified_model.py**: Reads a test inference CSV from `results/outputs/`, computes per-label AUC, and saves a bar chart to `results/images/`.
@@ -278,7 +246,7 @@ python3 test_per_label.py --label 'Atelectasis'
 
 ### Download
 
-- **`download_mimic_cxr_gsutil.py`**: Downloads MIMIC-CXR-JPG from Google Cloud Storage (`gs://mimic-cxr-jpg-2.1.0.physionet.org`). Requires `--project-id` for GCS billing. Supports `--subset p10,p11` for partial downloads, skip-existing via `.downloaded_manifest`, `--verify` mode, and parallel downloads.
+- **`download_mimic_cxr.py`**: Downloads MIMIC-CXR-JPG from PhysioNet via wget. Supports `--subset p10,p11` for partial downloads, `--views AP,PA` filtering, skip-existing via `.downloaded_manifest`, `--verify` mode, and parallel downloads.
 
 ### Prep Scripts (`mimic-cxr_scripts/`)
 

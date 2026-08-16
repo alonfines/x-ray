@@ -3,11 +3,9 @@ import copy
 import os
 from pathlib import Path
 
-import torch
 import yaml
 
 from data import ALL_CHEXPERT_LABELS
-from data.hierarchy import CHEXPERT_HIERARCHY
 
 ALL_LABELS = ["No Finding"] + list(ALL_CHEXPERT_LABELS)
 
@@ -70,8 +68,6 @@ def generate_config(label: str, base_config: dict, hierarchy: bool = False) -> P
 
     checkpoint_dir = CHECKPOINT_DIR_HIER if hierarchy else CHECKPOINT_DIR
     cfg["chkpt_callback"]["dirpath"] = str(checkpoint_dir)
-    cfg["conditional_training"] = {"enabled": False}
-    cfg["hierarchical_inference"] = {"enabled": False}
     cfg["hierarchy_correction"] = {"enabled": hierarchy}
 
     configs_dir = CONFIGS_DIR_HIER if hierarchy else CONFIGS_DIR
@@ -81,101 +77,6 @@ def generate_config(label: str, base_config: dict, hierarchy: bool = False) -> P
         yaml.dump(cfg, f, default_flow_style=False)
 
     return config_path
-
-
-def propagate_hierarchy_labels(labels: torch.Tensor, pathologies: list[str]) -> torch.Tensor:
-    """Propagate positive labels upward through the CheXpert hierarchy.
-
-    If a child label is positive (1), all its ancestors are set to positive.
-    E.g., Edema=1 implies Lung Opacity=1; Pneumonia=1 implies Consolidation=1
-    and Lung Opacity=1.
-
-    This corrects NaN-as-0 misattributions where a parent label was "not
-    mentioned" (NaN → 0) despite a positive child logically guaranteeing it.
-
-    Args:
-        labels: Tensor of shape (N, num_classes) with values {0, 1}.
-        pathologies: List of label names matching the columns of labels.
-
-    Returns:
-        Corrected labels tensor (same shape, modified in-place on a clone).
-    """
-    label_to_idx = {name: i for i, name in enumerate(pathologies)}
-    corrected = labels.clone()
-
-    for child, parents in CHEXPERT_HIERARCHY.items():
-        if child not in label_to_idx or not parents:
-            continue
-        child_idx = label_to_idx[child]
-        child_positive = corrected[:, child_idx] == 1
-        for parent in parents:
-            if parent in label_to_idx:
-                parent_idx = label_to_idx[parent]
-                corrected[child_positive, parent_idx] = 1
-
-    return corrected
-
-
-def load_hierarchy_corrected_labels(
-    csv_paths: list[str | Path], target_label: str,
-    keep_uncertain: bool = False,
-) -> torch.Tensor:
-    """Load labels from CSV(s) with hierarchy propagation applied.
-
-    Reads the full label columns from the CSV to propagate child→parent
-    positives, then returns the corrected column for ``target_label``.
-
-    Hierarchy propagation uses only definite labels (NaN → 0, -1 → 0) to
-    determine which children are positive.  After propagation, if
-    ``keep_uncertain`` is True the original -1 values for the *target*
-    label are restored (useful for test evaluation where uncertain is a
-    distinct category) — unless the target was corrected from 0 to 1 by
-    propagation.
-
-    Args:
-        csv_paths: One or more split CSV paths (e.g. conformal, validation).
-        target_label: The single label column to return after correction.
-        keep_uncertain: If True, preserve -1 in the target column for
-            samples that were not corrected by propagation.
-
-    Returns:
-        1-D tensor of corrected labels (length = total rows across CSVs).
-    """
-    import pandas as pd
-
-    all_label_cols = list(CHEXPERT_HIERARCHY.keys())
-    # Ensure target_label is included even if not in hierarchy (e.g. No Finding)
-    if target_label not in all_label_cols:
-        all_label_cols.append(target_label)
-
-    dfs = [pd.read_csv(p) for p in csv_paths]
-    df = pd.concat(dfs, ignore_index=True)
-
-    # Remember original uncertain positions for the target label
-    target_raw = df[target_label].values.astype(float)
-    uncertain_mask = target_raw == -1.0
-
-    # Build full label tensor: NaN → 0, -1 → 0
-    label_matrix = []
-    for col in all_label_cols:
-        vals = df[col].fillna(0.0).values.astype(float)
-        vals[vals == -1.0] = 0.0
-        label_matrix.append(vals)
-
-    labels_tensor = torch.tensor(label_matrix, dtype=torch.float32).T  # (N, C)
-    corrected = propagate_hierarchy_labels(labels_tensor, all_label_cols)
-
-    target_idx = all_label_cols.index(target_label)
-    result = corrected[:, target_idx]
-
-    if keep_uncertain:
-        # Restore -1 for samples that were originally uncertain AND were not
-        # corrected to 1 by hierarchy propagation
-        still_zero = result == 0
-        restore_mask = torch.tensor(uncertain_mask) & still_zero
-        result[restore_mask] = -1.0
-
-    return result
 
 
 def parse_labels(args_label: str | None) -> list[str]:

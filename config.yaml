@@ -86,18 +86,8 @@ conformal:
   weighting_scheme: uniform
   calibration_dir: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic
   q_hat_file: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/q_hat.pt
-conditional_training:
-  enabled: true
-  phase1_epochs: 25
-  phase2_epochs: 40
-  phase1_lr: 0.001
-  phase2_lr: 0.0001
-  pretrained_checkpoint: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/densenet-alllabels-bce-epoch=60-val_auroc_mean=0.784.ckpt
-  phase1_checkpoint_dir: checkpoints/ct_phase1
 hierarchy_correction:
   enabled: false
-hierarchical_inference:
-  enabled: true
 evaluation:
   checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/densenet-alllabels-bce-epoch=60-val_auroc_mean=0.784.ckpt
   checkpoint_dir: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic

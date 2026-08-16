@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from torchmetrics import Accuracy, AUROC
 from typing import Optional
 
-from data import get_data_module, ALL_CHEXPERT_LABELS, parse_labels_config
+from data import get_data_module, parse_labels_config
 from densenet_model import CXRDenseNet
 from losses import get_loss_function, AUCMarginLoss, calculate_pos_weights
 

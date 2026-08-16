@@ -4,7 +4,7 @@ import torch
 import pandas as pd
 from pathlib import Path
 from train import CXRClassifier
-from data import get_data_module, ALL_CHEXPERT_LABELS, parse_labels_config, apply_hierarchical_inference
+from data import get_data_module, parse_labels_config
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
 
@@ -51,8 +51,6 @@ def test_inference(config_path: str = "config.yaml"):
     output_config = config.get('output', {})
     data_config = config.get('data', {})
     working_dir = data_config.get('working_dir', os.getcwd())
-    hierarchical_enabled = config.get('hierarchical_inference', {}).get('enabled', False)
-
     print("\n[1] Loading trained model...")
     checkpoint_path = eval_config.get('checkpoint_path')
 
@@ -100,10 +98,7 @@ def test_inference(config_path: str = "config.yaml"):
             images = images.to(device)
 
             logits = model(images)
-            probs = torch.sigmoid(logits)
-            if hierarchical_enabled:
-                probs = apply_hierarchical_inference(probs, pathologies)
-            probs = probs.cpu()
+            probs = torch.sigmoid(logits).cpu()
             labels = labels.cpu()
 
             all_predictions.append(probs)

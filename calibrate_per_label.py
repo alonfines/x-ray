@@ -22,7 +22,7 @@ from train import CXRClassifier
 from calculate_conformal_pred import _calibrate_marginal
 from utils import (
     BASE_CONFIG, OUTPUT_BASE, OUTPUT_BASE_WITH_VAL,
-    OUTPUT_BASE_HIER, OUTPUT_BASE_WITH_VAL_HIER, PROJECT_ROOT,
+    OUTPUT_BASE_HIER, OUTPUT_BASE_WITH_VAL_HIER,
     find_checkpoint, generate_config, parse_labels, safe_name,
 )
 

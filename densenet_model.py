@@ -1,16 +1,9 @@
-import os
 import yaml
 import torch
 import torch.nn as nn
-import torchxrayvision as xrv
 from torchxrayvision.models import DenseNet
 
-# Import label constants for consistency with data.py
-ALL_CHEXPERT_LABELS = [
-    "Enlarged Cardiomediastinum", "Cardiomegaly", "Lung Opacity", "Lung Lesion",
-    "Edema", "Consolidation", "Pneumonia", "Atelectasis", "Pneumothorax",
-    "Pleural Effusion", "Pleural Other", "Fracture", "Support Devices"
-]
+from data import ALL_CHEXPERT_LABELS
 
 
 class CXRDenseNet(nn.Module):
@@ -42,18 +35,6 @@ class CXRDenseNet(nn.Module):
 
         # Load torchxrayvision pretrained DenseNet
         self.model = DenseNet(num_classes=self.num_classes, apply_sigmoid=False)
-
-    def freeze_backbone(self):
-        """Freeze all layers except the final classifier head (for CT Phase 2)."""
-        for param in self.model.parameters():
-            param.requires_grad = False
-        self.model.classifier.weight.requires_grad = True
-        self.model.classifier.bias.requires_grad = True
-
-    def unfreeze_all(self):
-        """Unfreeze all layers."""
-        for param in self.model.parameters():
-            param.requires_grad = True
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)

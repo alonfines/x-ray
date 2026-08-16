@@ -4,7 +4,6 @@ Provides dataset and DataModule implementations for CheXpert and MIMIC-CXR-JPG.
 """
 
 from typing import List, Tuple
-from data.hierarchy import CHEXPERT_HIERARCHY, apply_hierarchical_inference
 
 # All 13 CheXpert pathologies (excluding No Finding)
 ALL_CHEXPERT_LABELS = [
