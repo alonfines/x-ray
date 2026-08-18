@@ -263,7 +263,13 @@ Scripts in `results/scripts/` generate plots saved to `results/images/`. Test in
 ```bash
 python3 results/scripts/label_distribution.py
 python3 results/scripts/auc_unified_model.py
+python3 results/scripts/co_occurrence_analysis.py
+python3 results/scripts/dependency_matrices.py
 ```
+
+## Agents
+
+- **Tom Hagan** (`.claude/agents/tom-hagan.md`): Research consigliere and AI/math expert. Does NOT write code. Consults on research strategy, paper narrative, mathematical formulations (conformal prediction, coverage guarantees, score functions), and helps navigate thesis decisions. Invoke for strategic questions about the research direction, paper contribution, or when stuck.
 
 **Plot Design Guideline:** All plots must be readable by a 50-year-old woman without glasses, looking at a small laptop screen through a Zoom call. This means:
 - Large figure size (18×11 inches minimum)

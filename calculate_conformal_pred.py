@@ -302,12 +302,15 @@ def main(config_path: str = "config.yaml"):
 
     # Calibration
     print("\n[3] Running calibration...")
-    data_config = config.get('data', {})
-    conformal_csv = os.path.join(data_config.get('working_dir', os.getcwd()), 'conformal_split.csv')
+    conformal_csv = data_module.conformal_csv
     calibrate_per_class_thresholds(data_module, model, device, config_path, conformal_csv)
 
     print("\n✅ Calibration complete!")
 
 
 if __name__ == "__main__":
-    main(config_path="/gpfs0/tamyr/users/alonfi/XRay/config.yaml")
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', default='/gpfs0/tamyr/users/alonfi/XRay/config.yaml')
+    args = parser.parse_args()
+    main(config_path=args.config)

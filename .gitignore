@@ -1,5 +1,8 @@
-# Model checkpoints
+# Model checkpoints and weights
 checkpoints/
+*.ckpt
+*.pt
+*.pth
 
 # Python cache
 __pycache__/

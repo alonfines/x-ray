@@ -23,7 +23,7 @@ from utils import safe_name
 
 UNIFIED_CSV = (
     PROJECT_ROOT / "results" / "outputs" / "mimic"
-    / "densenet-alllabels-bce-epoch=60-val_auroc_mean=0.784.csv"
+    / "densenet-alllabels-bce-hier-epoch=50-val_auroc_mean=0.785.csv"
 )
 
 PER_LABEL_DIR = PROJECT_ROOT / "conformal_calibration" / "mimic" / "per_label_hier"

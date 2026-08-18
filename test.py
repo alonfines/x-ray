@@ -148,7 +148,11 @@ def test_inference(config_path: str = "config.yaml"):
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', default='/gpfs0/tamyr/users/alonfi/XRay/config.yaml')
+    args = parser.parse_args()
     print('=' * 80)
     print('TEST INFERENCE')
     print('=' * 80)
-    test_inference(config_path="/gpfs0/tamyr/users/alonfi/XRay/config.yaml")
+    test_inference(config_path=args.config)

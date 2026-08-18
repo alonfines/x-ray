@@ -13,7 +13,7 @@ NO_FINDING_COL = "No Finding"
 SUPPORT_DEVICES_COL = "Support Devices"
 
 
-def parse_labels_config(config: dict) -> Tuple[List[str], bool]:
+def parse_labels_config(config: dict) -> tuple[list[str], bool]:
     """Parse the 'labels' field from config.
 
     Returns:
