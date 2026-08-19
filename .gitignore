@@ -1,7 +1,6 @@
 # Model checkpoints and weights
 checkpoints/
 *.ckpt
-*.pt
 *.pth
 
 # Python cache
@@ -37,9 +36,25 @@ chexpert/
 wandb/
 
 # Output files
-results.csv
-conformal_calibration/
 csv_files/
+
+# Binary data
+*.pt
 
 # Job submission cheat-sheets
 submit_*.txt
+
+# === Exceptions: conformal calibration results ===
+# Un-ignore the conformal_calibration directory tree
+!conformal_calibration/
+!conformal_calibration/**/
+# Track thresholds, confusion matrices, and test CSVs
+!conformal_calibration/**/bcops_thresholds.pt
+!conformal_calibration/**/test_results.csv
+!conformal_calibration/**/*.png
+
+# === Exceptions: test inference results ===
+!results/
+!results/outputs/
+!results/outputs/**/
+!results/outputs/**/*.csv
