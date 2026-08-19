@@ -1,0 +1,96 @@
+experiment_name: baseline_hier
+dataset: mimic
+labels: all
+loss:
+  type: bce
+  auc_margin:
+    margin: 1.0
+    pretrained_checkpoint: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/densenet-alllabels-bce-epoch=60-val_auroc_mean=0.784.ckpt
+    reinit_classifier: true
+data:
+  working_dir: /gpfs0/tamyr/users/alonfi/XRay
+  chexpert_dir: /gpfs0/tamyr/projects/data/chest_xray/chexpert
+  train_split_csv: csv_files/chexpert/train_split.csv
+  valid_split_csv: csv_files/chexpert/valid_split.csv
+  conformal_split_csv: csv_files/chexpert/conformal_split.csv
+  test_split_csv: csv_files/chexpert/test_split.csv
+  split_ratios:
+    train: 0.7
+    validation: 0.1
+    conformal: 0.1
+    test: 0.1
+mimic:
+  data_dir: /gpfs0/tamyr/projects/data/MIMIC-CXR
+  files_dir: /gpfs0/tamyr/projects/data/MIMIC-CXR/files
+  metadata_csv: /gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.0.0-metadata.csv
+  chexpert_csv: /gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.0.0-chexpert.csv
+  test_labels_csv: /gpfs0/tamyr/projects/data/MIMIC-CXR/csv/mimic-cxr-2.1.0-test-set-labeled.csv
+  views:
+  - AP
+  - PA
+  train_split_csv: csv_files/mimic/train_split.csv
+  valid_split_csv: csv_files/mimic/valid_split.csv
+  conformal_split_csv: csv_files/mimic/conformal_split.csv
+  test_split_csv: csv_files/mimic/test_split.csv
+  split_ratios:
+    train: 0.7
+    validation: 0.1
+    conformal: 0.1
+    test: 0.1
+training:
+  batch_size: 64
+  num_workers: 16
+  uncertain_strategy: u_ones_lsr
+  task_weights:
+  - 2.242
+  - 3.04
+  - 8.464
+  - 1.742
+  - 6.383
+optimizer:
+  lr: 0.001
+  min_lr: 1e-6
+  w_decay: 0.05
+trainer:
+  fast_dev_run: false
+  max_epochs: 10
+  precision: bf16-mixed
+  accelerator: gpu
+  devices: auto
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      project: cxr_uda
+      name: baseline_run
+      tags:
+      - baseline
+  callbacks:
+  - class_path: lightning.pytorch.callbacks.EarlyStopping
+    init_args:
+      monitor: val_auroc_mean
+      patience: 5
+      mode: max
+      verbose: true
+  - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+    init_args:
+      logging_interval: epoch
+chkpt_callback:
+  monitor: val_auroc_mean
+  mode: max
+  save_top_k: 1
+  dirpath: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic
+  filename: densenet-{epoch:02d}-{val_auroc_mean:.3f}
+conformal:
+  alpha: 0.1
+  use_weights: false
+  weighting_scheme: uniform
+  calibration_dir: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/hier_unified
+  q_hat_file: /gpfs0/tamyr/users/alonfi/XRay/conformal_calibration/mimic/hier_unified/q_hat.pt
+hierarchy_correction:
+  enabled: true
+evaluation:
+  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/densenet-alllabels-bce-hier-epoch=50-val_auroc_mean=0.785.ckpt
+  checkpoint_dir: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic
+output:
+  log_dir: /gpfs0/tamyr/users/alonfi/XRay/logs
+  results_csv: csv_files/mimic/results_hier.csv
