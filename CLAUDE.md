@@ -113,7 +113,7 @@ The login node is for data transfer and job submission ONLY. Do NOT run Python s
 
 1. Edit and commit code on the login node
 2. Push to git repository
-3. Submit training jobs to compute nodes using `runai` (never run `python3 train.py` directly on login node)
+3. Submit training jobs to compute nodes using `runai` (never run `python train.py` directly on login node)
 4. Monitor job status with runai commands
 
 ## Quick Start
@@ -128,20 +128,20 @@ The login node is for data transfer and job submission ONLY. Do NOT run Python s
 1. Create the stratified splits:
 ```bash
 # CheXpert
-runai submit split_job python3 -c "import sys; sys.path.insert(0,'.'); exec(open('data/chexpert_split.py').read())"
+runai submit split_job python -c "import sys; sys.path.insert(0,'.'); exec(open('data/chexpert_split.py').read())"
 
 # MIMIC-CXR
-runai submit split_job python3 -c "import sys; sys.path.insert(0,'.'); exec(open('data/mimic_split.py').read())"
+runai submit split_job python -c "import sys; sys.path.insert(0,'.'); exec(open('data/mimic_split.py').read())"
 ```
 
 2. Train the model:
 ```bash
-runai submit train_job python3 train.py
+runai submit train_job python train.py
 ```
 
 3. Run test evaluation:
 ```bash
-runai submit test_job python3 test.py
+runai submit test_job python test.py
 ```
 
 **Configuration:**
@@ -174,19 +174,30 @@ CheXpert labels suffer from a labeling artifact: when a child finding is positiv
 **Running (per-label):**
 ```bash
 # Train with hierarchy correction
-python3 train_per_label.py --label 'Edema' --hierarchy
+python train_per_label.py --label 'Edema' --hierarchy
 
 # Calibrate (after training)
-python3 calibrate_per_label.py --label 'Edema' --hierarchy
+python calibrate_per_label.py --label 'Edema' --hierarchy
 
 # Test (after calibration)
-python3 test_per_label.py --label 'Edema' --hierarchy
+python test_per_label.py --label 'Edema' --hierarchy
 
 # Omit --label to process all labels
 # Combine with --include-val for conformal+validation calibration
 ```
 
-**Running (unified model):** Set `hierarchy_correction.enabled: true` in config.yaml, then run `python3 train.py`.
+**Running (unified model):** Use `config_hier_unified.yaml` (hierarchy-enabled variant of config.yaml with separate output dirs):
+```bash
+# Train
+python train.py --config config_hier_unified.yaml
+
+# Calibrate conformal thresholds
+python calculate_conformal_pred.py --config config_hier_unified.yaml
+
+# Test
+python test.py --config config_hier_unified.yaml
+```
+Outputs go to `conformal_calibration/mimic/hier_unified/` (thresholds, confusion matrices) and `results/outputs/mimic/` (test CSV).
 
 **Job submissions:** `submit_per_label_hier_jobs.txt` contains runai-bgu commands for all 14 labels.
 
@@ -212,6 +223,7 @@ python3 test_per_label.py --label 'Edema' --hierarchy
 - **test_per_label.py**: Tests per-label models with BCOPS conformal predictions. Supports `--hierarchy` flag. Outputs CSV results and 3x3 confusion matrix PNGs (true Positive/Uncertain/Negative vs predicted).
 - **test.py**: Runs inference on test_split, saves predictions CSV to `results/outputs/`, prints per-label AUC (filtering uncertain labels).
 - **data/hierarchy.py**: Disease hierarchy (`CHEXPERT_HIERARCHY`), `apply_hierarchy_correction_to_df()`.
+- **config_hier_unified.yaml**: Hierarchy-enabled config for the unified model. Points to the hier checkpoint, enables hierarchy correction, and outputs to `conformal_calibration/mimic/hier_unified/`.
 - **calculate_conformal_pred.py**: Conformal prediction calibration using conformal_split.
 - **results/scripts/label_distribution.py**: Reads all MIMIC split CSVs, verifies no sample overlap, generates per-split and combined label distribution bar charts saved to `results/images/`.
 - **results/scripts/auc_unified_model.py**: Reads a test inference CSV from `results/outputs/`, computes per-label AUC, and saves a bar chart to `results/images/`.
@@ -230,13 +242,13 @@ Trains 14 independent binary classifiers (one per CheXpert label) starting from 
 **Running:**
 ```bash
 # Train
-python3 train_per_label.py --label 'Atelectasis'
+python train_per_label.py --label 'Atelectasis'
 
 # Calibrate (after training)
-python3 calibrate_per_label.py --label 'Atelectasis'
+python calibrate_per_label.py --label 'Atelectasis'
 
 # Test (after calibration)
-python3 test_per_label.py --label 'Atelectasis'
+python test_per_label.py --label 'Atelectasis'
 
 # Omit --label to process all labels
 # Add --hierarchy to use hierarchy label correction (separate checkpoints/output dirs)
@@ -261,10 +273,10 @@ Scripts in `results/scripts/` generate plots saved to `results/images/`. Test in
 
 **Running:**
 ```bash
-python3 results/scripts/label_distribution.py
-python3 results/scripts/auc_unified_model.py
-python3 results/scripts/co_occurrence_analysis.py
-python3 results/scripts/dependency_matrices.py
+python results/scripts/label_distribution.py
+python results/scripts/auc_unified_model.py
+python results/scripts/co_occurrence_analysis.py
+python results/scripts/dependency_matrices.py
 ```
 
 ## Agents
