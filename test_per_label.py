@@ -15,6 +15,7 @@ Usage:
     python test_per_label.py --hierarchy     # use hierarchy-corrected checkpoints
 """
 import argparse
+import os
 
 import matplotlib
 matplotlib.use('Agg')
@@ -238,12 +239,27 @@ def test_single_label(label: str, base_config: dict,
 
     label_dir.mkdir(parents=True, exist_ok=True)
     csv_path = label_dir / 'test_results.csv'
-    pd.DataFrame({
-        'sample_id': range(len(all_probs)),
+
+    # Read subject identifiers from the test split CSV (order matches DataLoader, shuffle=False)
+    with open(config_path) as f_cfg:
+        cfg_for_ids = yaml.safe_load(f_cfg)
+    mimic_cfg = cfg_for_ids.get('mimic', {})
+    data_cfg = cfg_for_ids.get('data', {})
+    working_dir = data_cfg.get('working_dir', os.getcwd())
+    test_csv_path = os.path.join(working_dir, mimic_cfg.get('test_split_csv', 'csv_files/mimic/test_split.csv'))
+    test_df = pd.read_csv(test_csv_path)
+    id_cols = [c for c in ['subject_id', 'study_id', 'dicom_id'] if c in test_df.columns]
+
+    result_df = pd.DataFrame({
         'prob': [f"{p:.6f}" for p in all_probs],
         'true_label': all_labels.astype(int),
         'bcops_prediction': bcops_preds,
-    }).to_csv(csv_path, index=False)
+    })
+    if id_cols and len(test_df) == len(all_probs):
+        result_df = pd.concat([test_df[id_cols].reset_index(drop=True), result_df], axis=1)
+    else:
+        result_df.insert(0, 'sample_id', range(len(all_probs)))
+    result_df.to_csv(csv_path, index=False)
     print(f"  Saved CSV: {csv_path}")
 
     plot_confusion_matrix(

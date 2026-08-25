@@ -25,7 +25,7 @@ data:
 dataset: mimic
 evaluation:
   checkpoint_dir: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic
-  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label_hier/densenet-pleural_effusion-bce-hier-epoch=23-val_auroc_mean=0.902.ckpt
+  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label_hier/densenet-pleural_effusion-bce-hier-epoch=30-val_auroc_mean=0.916.ckpt
 experiment_name: baseline
 hierarchy_correction:
   enabled: true

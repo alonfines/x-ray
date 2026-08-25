@@ -8,29 +8,31 @@ from data import get_data_module, parse_labels_config
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
 
-def save_results_to_csv(predictions: torch.Tensor, true_labels: torch.Tensor, pathologies: list, csv_path: str) -> None:
-    """Save model predictions and true labels to CSV."""
-    num_samples = predictions.shape[0]
-    rows = []
+def save_results_to_csv(predictions: torch.Tensor, true_labels: torch.Tensor, pathologies: list, csv_path: str, sample_ids: pd.DataFrame = None) -> None:
+    """Save model predictions and true labels to CSV.
 
-    # Vectorized computation
+    Args:
+        sample_ids: Optional DataFrame with identifier columns (e.g. subject_id,
+            study_id, dicom_id for MIMIC). When provided, these columns appear
+            first instead of a numeric sample_id.
+    """
+    num_samples = predictions.shape[0]
     predictions_np = predictions.cpu().numpy()
     true_labels_np = true_labels.cpu().numpy()
 
-    for sample_idx in range(num_samples):
-        row = {'sample_id': sample_idx}
+    # Build prediction columns
+    pred_data = {}
+    for class_idx, pathology in enumerate(pathologies):
+        pred_data[f'{pathology}_prob'] = [f"{predictions_np[i, class_idx]:.6f}" for i in range(num_samples)]
+        pred_data[f'{pathology}_true_label'] = true_labels_np[:, class_idx].astype(int)
 
-        for class_idx, pathology in enumerate(pathologies):
-            prob = predictions_np[sample_idx, class_idx]
-            true_label = int(true_labels_np[sample_idx, class_idx])
+    pred_df = pd.DataFrame(pred_data)
 
-            row[f'{pathology}_prob'] = f"{prob:.6f}"
-            row[f'{pathology}_true_label'] = true_label
+    if sample_ids is not None and len(sample_ids) == num_samples:
+        df = pd.concat([sample_ids.reset_index(drop=True), pred_df], axis=1)
+    else:
+        df = pd.concat([pd.DataFrame({'sample_id': range(num_samples)}), pred_df], axis=1)
 
-        rows.append(row)
-
-    # Use pandas for batch writing
-    df = pd.DataFrame(rows)
     df.to_csv(csv_path, index=False)
 
     print(f"\n✓ Saved test results to: {csv_path}")
@@ -85,6 +87,11 @@ def test_inference(config_path: str = "config.yaml"):
 
     pathologies, _ = parse_labels_config(config)
 
+    # Extract subject identifiers from the test dataset (order matches DataLoader since shuffle=False)
+    test_df = data_module.test_dataset.df
+    id_cols = [c for c in ['subject_id', 'study_id', 'dicom_id', 'Path'] if c in test_df.columns]
+    sample_ids = test_df[id_cols].reset_index(drop=True) if id_cols else None
+
     print("\n[3] Running inference on test set...")
     test_loader = data_module.test_dataloader()
 
@@ -120,7 +127,7 @@ def test_inference(config_path: str = "config.yaml"):
     output_dir = Path(working_dir) / "results" / "outputs" / dataset_name
     output_dir.mkdir(parents=True, exist_ok=True)
     csv_path = output_dir / f"{checkpoint_stem}.csv"
-    save_results_to_csv(all_predictions, all_true_labels, pathologies, str(csv_path))
+    save_results_to_csv(all_predictions, all_true_labels, pathologies, str(csv_path), sample_ids)
 
     # Compute and print AUC per label
     print("\n[5] AUC Results:")

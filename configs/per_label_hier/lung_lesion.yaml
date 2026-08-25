@@ -25,7 +25,7 @@ data:
 dataset: mimic
 evaluation:
   checkpoint_dir: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic
-  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label_hier/densenet-lung_lesion-bce-hier-epoch=05-val_auroc_mean=0.765.ckpt
+  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label_hier/densenet-lung_lesion-bce-hier-epoch=39-val_auroc_mean=0.735.ckpt
 experiment_name: baseline
 hierarchy_correction:
   enabled: true

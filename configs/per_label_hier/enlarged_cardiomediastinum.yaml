@@ -25,7 +25,7 @@ data:
 dataset: mimic
 evaluation:
   checkpoint_dir: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic
-  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label_hier/densenet-enlarged_cardiomediastinum-bce-hier-epoch=14-val_auroc_mean=0.796.ckpt
+  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label_hier/densenet-enlarged_cardiomediastinum-bce-hier-epoch=09-val_auroc_mean=0.806.ckpt
 experiment_name: baseline
 hierarchy_correction:
   enabled: true

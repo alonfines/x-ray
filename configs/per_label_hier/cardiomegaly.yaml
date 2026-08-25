@@ -25,7 +25,7 @@ data:
 dataset: mimic
 evaluation:
   checkpoint_dir: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic
-  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label_hier/densenet-cardiomegaly-bce-hier-epoch=11-val_auroc_mean=0.812.ckpt
+  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/per_label_hier/densenet-cardiomegaly-bce-hier-epoch=29-val_auroc_mean=0.818.ckpt
 experiment_name: baseline
 hierarchy_correction:
   enabled: true
