@@ -37,8 +37,14 @@ def find_checkpoint(label: str, hierarchy: bool = False) -> Path | None:
     return max(matches, key=os.path.getctime)
 
 
-def generate_config(label: str, base_config: dict, hierarchy: bool = False) -> Path:
-    """Create a per-label config file. Returns the config path."""
+def generate_config(label: str, base_config: dict, hierarchy: bool = False,
+                    resume_from_existing: bool = False) -> Path:
+    """Create a per-label config file. Returns the config path.
+
+    If resume_from_existing is True and an existing per-label checkpoint is
+    found, use it as the pretrained checkpoint (keeping the classifier head).
+    Otherwise, start from the all-labels backbone with a fresh classifier.
+    """
     cfg = copy.deepcopy(base_config)
     name = safe_name(label)
 
@@ -46,10 +52,11 @@ def generate_config(label: str, base_config: dict, hierarchy: bool = False) -> P
     cfg["training"]["uncertain_strategy"] = "u_zeros"
     cfg["training"].pop("task_weights", None)
 
+    existing_ckpt = find_checkpoint(label, hierarchy=hierarchy) if resume_from_existing else None
     cfg["loss"] = {
         "type": "bce",
-        "pretrained_checkpoint": str(PRETRAINED_CKPT),
-        "reinit_classifier": True,
+        "pretrained_checkpoint": str(existing_ckpt or PRETRAINED_CKPT),
+        "reinit_classifier": existing_ckpt is None,
     }
 
     cfg["optimizer"]["lr"] = 0.001

@@ -33,18 +33,26 @@ def run_inference(model, dataloader, device):
     return torch.cat(all_probs, dim=0), torch.cat(all_labels, dim=0)
 
 
-def save_scores_csv(probs, labels, pathologies, csv_path):
-    """Save probs + true labels to CSV."""
-    rows = []
+def save_scores_csv(probs, labels, pathologies, csv_path, sample_ids=None):
+    """Save probs + true labels to CSV.
+
+    Args:
+        sample_ids: Optional DataFrame with identifier columns (e.g. subject_id,
+            study_id, dicom_id). When provided, these appear first instead of
+            numeric sample_id.
+    """
     probs_np = probs.numpy()
     labels_np = labels.numpy()
-    for i in range(len(probs_np)):
-        row = {"sample_id": i}
-        for j, p in enumerate(pathologies):
-            row[f"{p}_prob"] = f"{probs_np[i, j]:.6f}"
-            row[f"{p}_true_label"] = labels_np[i, j]
-        rows.append(row)
-    df = pd.DataFrame(rows)
+    pred_data = {}
+    for j, p in enumerate(pathologies):
+        pred_data[f"{p}_prob"] = [f"{probs_np[i, j]:.6f}" for i in range(len(probs_np))]
+        pred_data[f"{p}_true_label"] = labels_np[:, j]
+    pred_df = pd.DataFrame(pred_data)
+
+    if sample_ids is not None and len(sample_ids) == len(probs_np):
+        df = pd.concat([sample_ids.reset_index(drop=True), pred_df], axis=1)
+    else:
+        df = pd.concat([pd.DataFrame({"sample_id": range(len(probs_np))}), pred_df], axis=1)
     df.to_csv(csv_path, index=False)
     print(f"  Saved: {csv_path} ({len(df)} samples)")
 
@@ -79,15 +87,22 @@ def export_unified_hier():
     output_dir = SCORES_DIR / "unified_hier"
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Extract subject identifiers (order matches DataLoader since shuffle=False)
+    def _get_ids(dataset):
+        id_cols = [c for c in ['subject_id', 'study_id', 'dicom_id', 'Path'] if c in dataset.df.columns]
+        return dataset.df[id_cols].reset_index(drop=True) if id_cols else None
+
     # Conformal set
     print("\n  Running inference on conformal set...")
     probs, labels = run_inference(model, data_module.conformal_dataloader(), device)
-    save_scores_csv(probs, labels, pathologies, output_dir / "conformal_scores.csv")
+    save_scores_csv(probs, labels, pathologies, output_dir / "conformal_scores.csv",
+                    _get_ids(data_module.conformal_dataset))
 
     # Validation set
     print("  Running inference on validation set...")
     probs, labels = run_inference(model, data_module.val_dataloader(), device)
-    save_scores_csv(probs, labels, pathologies, output_dir / "validation_scores.csv")
+    save_scores_csv(probs, labels, pathologies, output_dir / "validation_scores.csv",
+                    _get_ids(data_module.val_dataset))
 
 
 def export_per_label():
@@ -105,6 +120,8 @@ def export_per_label():
     # We'll collect all per-label predictions into combined DataFrames
     conformal_dfs = []
     validation_dfs = []
+    conformal_ids = None
+    validation_ids = None
 
     for label in ALL_LABELS:
         checkpoint = find_checkpoint(label, hierarchy=False)
@@ -135,6 +152,14 @@ def export_per_label():
 
         name = safe_name(label)
 
+        # Capture subject IDs once (same for all labels since same split CSV)
+        if conformal_ids is None:
+            id_cols = [c for c in ['subject_id', 'study_id', 'dicom_id', 'Path']
+                       if c in data_module.conformal_dataset.df.columns]
+            if id_cols:
+                conformal_ids = data_module.conformal_dataset.df[id_cols].reset_index(drop=True)
+                validation_ids = data_module.val_dataset.df[id_cols].reset_index(drop=True)
+
         # Conformal
         probs, labels_t = run_inference(model, data_module.conformal_dataloader(), device)
         probs_np = probs.squeeze(1).numpy()
@@ -158,14 +183,112 @@ def export_per_label():
 
     if conformal_dfs:
         combined = pd.concat(conformal_dfs, axis=1)
-        combined.insert(0, "sample_id", range(len(combined)))
+        if conformal_ids is not None and len(conformal_ids) == len(combined):
+            combined = pd.concat([conformal_ids, combined], axis=1)
+        else:
+            combined.insert(0, "sample_id", range(len(combined)))
         csv_path = output_dir / "conformal_scores.csv"
         combined.to_csv(csv_path, index=False)
         print(f"\n  Saved: {csv_path} ({len(combined)} samples)")
 
     if validation_dfs:
         combined = pd.concat(validation_dfs, axis=1)
-        combined.insert(0, "sample_id", range(len(combined)))
+        if validation_ids is not None and len(validation_ids) == len(combined):
+            combined = pd.concat([validation_ids, combined], axis=1)
+        else:
+            combined.insert(0, "sample_id", range(len(combined)))
+        csv_path = output_dir / "validation_scores.csv"
+        combined.to_csv(csv_path, index=False)
+        print(f"\n  Saved: {csv_path} ({len(combined)} samples)")
+
+
+def export_per_label_hier():
+    """Export conformal and validation scores for all per-label hier models."""
+    print("\n" + "=" * 70)
+    print("PER-LABEL HIER MODELS: Exporting conformal & validation scores")
+    print("=" * 70)
+
+    with open(BASE_CONFIG) as f:
+        base_config = yaml.safe_load(f)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"  Device: {device}")
+
+    conformal_dfs = []
+    validation_dfs = []
+    conformal_ids = None
+    validation_ids = None
+
+    for label in ALL_LABELS:
+        checkpoint = find_checkpoint(label, hierarchy=True)
+        if checkpoint is None:
+            print(f"\n  [SKIP] No checkpoint for '{label}'")
+            continue
+
+        print(f"\n  Processing: {label} ({checkpoint.name})")
+        config_path = generate_config(label, base_config, hierarchy=True)
+
+        with open(config_path) as f:
+            cfg = yaml.safe_load(f)
+        cfg["evaluation"]["checkpoint_path"] = str(checkpoint)
+        cfg["loss"]["pretrained_checkpoint"] = None
+        cfg["loss"]["reinit_classifier"] = False
+        with open(config_path, "w") as f:
+            yaml.dump(cfg, f, default_flow_style=False)
+
+        model = CXRClassifier.load_from_checkpoint(
+            checkpoint, strict=False, config_path=str(config_path)
+        )
+        model = model.to(device)
+        model.eval()
+
+        data_module = get_data_module(config_path=str(config_path), num_workers=4)
+        data_module.setup(stage="fit")
+
+        if conformal_ids is None:
+            id_cols = [c for c in ['subject_id', 'study_id', 'dicom_id', 'Path']
+                       if c in data_module.conformal_dataset.df.columns]
+            if id_cols:
+                conformal_ids = data_module.conformal_dataset.df[id_cols].reset_index(drop=True)
+                validation_ids = data_module.val_dataset.df[id_cols].reset_index(drop=True)
+
+        # Conformal
+        probs, labels_t = run_inference(model, data_module.conformal_dataloader(), device)
+        probs_np = probs.squeeze(1).numpy()
+        labels_np = labels_t.squeeze(1).numpy()
+        conformal_dfs.append(pd.DataFrame({
+            f"{label}_prob": [f"{p:.6f}" for p in probs_np],
+            f"{label}_true_label": labels_np,
+        }))
+
+        # Validation
+        probs, labels_t = run_inference(model, data_module.val_dataloader(), device)
+        probs_np = probs.squeeze(1).numpy()
+        labels_np = labels_t.squeeze(1).numpy()
+        validation_dfs.append(pd.DataFrame({
+            f"{label}_prob": [f"{p:.6f}" for p in probs_np],
+            f"{label}_true_label": labels_np,
+        }))
+
+    output_dir = SCORES_DIR / "per_label_hier"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if conformal_dfs:
+        combined = pd.concat(conformal_dfs, axis=1)
+        if conformal_ids is not None and len(conformal_ids) == len(combined):
+            combined = pd.concat([conformal_ids, combined], axis=1)
+        else:
+            combined.insert(0, "sample_id", range(len(combined)))
+        csv_path = output_dir / "conformal_scores.csv"
+        combined.to_csv(csv_path, index=False)
+        print(f"\n  Saved: {csv_path} ({len(combined)} samples)")
+
+    if validation_dfs:
+        combined = pd.concat(validation_dfs, axis=1)
+        if validation_ids is not None and len(validation_ids) == len(combined):
+            combined = pd.concat([validation_ids, combined], axis=1)
+        else:
+            combined.insert(0, "sample_id", range(len(combined)))
         csv_path = output_dir / "validation_scores.csv"
         combined.to_csv(csv_path, index=False)
         print(f"\n  Saved: {csv_path} ({len(combined)} samples)")
@@ -174,7 +297,7 @@ def export_per_label():
 if __name__ == "__main__":
     SCORES_DIR.mkdir(parents=True, exist_ok=True)
     export_unified_hier()
-    export_per_label()
+    export_per_label_hier()
     print("\n" + "=" * 70)
     print("Done! All scores exported.")
     print("=" * 70)

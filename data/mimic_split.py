@@ -11,9 +11,12 @@ This script:
 """
 
 import os
+import sys
 import yaml
 import pandas as pd
 from sklearn.model_selection import train_test_split
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from data import parse_labels_config
 from data.split_utils import get_stratification_target, print_split_statistics
 

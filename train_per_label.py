@@ -26,6 +26,9 @@ def main():
                              "If omitted, trains all labels sequentially.")
     parser.add_argument("--hierarchy", action="store_true",
                         help="Enable hierarchy label correction during training.")
+    parser.add_argument("--resume", action="store_true",
+                        help="Resume from existing per-label checkpoints instead of "
+                             "the all-labels backbone. Retrains all labels.")
     args = parser.parse_args()
 
     with open(BASE_CONFIG) as f:
@@ -35,24 +38,32 @@ def main():
 
     if args.hierarchy:
         print("\n[HIERARCHY] Training with hierarchy label correction enabled")
+    if args.resume:
+        print("[RESUME] Fine-tuning from existing per-label checkpoints")
 
     config_paths = []
     for label in labels:
-        config_path = generate_config(label, base_config, hierarchy=args.hierarchy)
+        config_path = generate_config(label, base_config, hierarchy=args.hierarchy,
+                                      resume_from_existing=args.resume)
         config_paths.append((label, config_path))
         print(f"  {label:<30} -> {config_path.relative_to(PROJECT_ROOT)}")
 
-    done = [label for label, _ in config_paths
-            if find_checkpoint(label, hierarchy=args.hierarchy)]
-    remaining = [(label, cfg) for label, cfg in config_paths if label not in done]
-
-    if len(done) == len(labels):
-        print("\nAll labels already have checkpoints. Starting a fresh training round.")
+    if args.resume:
+        # When resuming, retrain all labels (don't skip any)
         remaining = config_paths
-    elif done:
-        print(f"\nSkipping {len(done)} already-trained labels:")
-        for label in done:
-            print(f"  [DONE] {label}")
+        done = []
+    else:
+        done = [label for label, _ in config_paths
+                if find_checkpoint(label, hierarchy=args.hierarchy)]
+        remaining = [(label, cfg) for label, cfg in config_paths if label not in done]
+
+        if len(done) == len(labels):
+            print("\nAll labels already have checkpoints. Starting a fresh training round.")
+            remaining = config_paths
+        elif done:
+            print(f"\nSkipping {len(done)} already-trained labels:")
+            for label in done:
+                print(f"  [DONE] {label}")
 
     print(f"\n{'=' * 70}")
     print(f"Training {len(remaining)}/{len(labels)} binary models...")

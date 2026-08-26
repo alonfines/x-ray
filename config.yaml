@@ -1,6 +1,6 @@
 experiment_name: baseline
 dataset: mimic
-labels: ["Fracture"]
+labels: all
 loss:
   type: bce
   auc_margin:
@@ -41,12 +41,6 @@ training:
   batch_size: 64
   num_workers: 16
   uncertain_strategy: u_ones_lsr
-  task_weights:
-  - 2.242
-  - 3.04
-  - 8.464
-  - 1.742
-  - 6.383
 optimizer:
   lr: 0.001
   min_lr: 1e-6
