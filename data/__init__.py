@@ -31,12 +31,9 @@ def get_data_module(config_path: str = "config.yaml", **kwargs):
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
-    dataset = config.get('dataset', 'chexpert')
-    if dataset == 'chexpert':
-        from data.chexpert import CheXpertDataModule
-        return CheXpertDataModule(config_path=config_path, **kwargs)
-    elif dataset == 'mimic':
+    dataset = config.get('dataset', 'mimic')
+    if dataset == 'mimic':
         from data.mimic import MIMICDataModule
         return MIMICDataModule(config_path=config_path, **kwargs)
     else:
-        raise ValueError(f"Unknown dataset: {dataset}. Must be 'chexpert' or 'mimic'.")
+        raise ValueError(f"Unknown dataset: {dataset}. Only 'mimic' is supported.")

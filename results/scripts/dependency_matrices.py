@@ -16,8 +16,8 @@ import pandas as pd
 import seaborn as sns
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(PROJECT_ROOT))
-from utils import safe_name
+def safe_name(label: str) -> str:
+    return label.lower().replace(" ", "_")
 
 TRAIN_CSV = PROJECT_ROOT / "csv_files" / "mimic" / "train_split.csv"
 PER_LABEL_DIR = PROJECT_ROOT / "conformal_calibration" / "mimic" / "per_label"

@@ -73,7 +73,7 @@ chkpt_callback:
   mode: max
   save_top_k: 1
   dirpath: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic
-  filename: densenet-{epoch:02d}-{val_auroc_mean:.3f}
+  filename: densenet-full-{epoch:02d}-{val_auroc_mean:.3f}
 conformal:
   alpha: 0.1
   use_weights: false
@@ -83,7 +83,7 @@ conformal:
 hierarchy_correction:
   enabled: true
 evaluation:
-  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/densenet-alllabels-bce-hier-epoch=50-val_auroc_mean=0.785.ckpt
+  checkpoint_path: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic/densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809.ckpt
   checkpoint_dir: /gpfs0/tamyr/users/alonfi/XRay/checkpoints/mimic
 output:
   log_dir: /gpfs0/tamyr/users/alonfi/XRay/logs

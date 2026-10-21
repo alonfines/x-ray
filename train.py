@@ -10,15 +10,15 @@ from typing import Optional
 
 from data import get_data_module, parse_labels_config
 from densenet_model import CXRDenseNet
-from losses import get_loss_function, AUCMarginLoss, calculate_pos_weights
+from losses import get_loss_function, calculate_pos_weights
 
 
 class CXRClassifier(pl.LightningModule):
     """PyTorch Lightning wrapper for multi-label chest X-ray classification."""
 
-    def __init__(self, config_path: str = "config.yaml"):
+    def __init__(self, config_path: str = "config.yaml", _skip_pretrained: bool = False):
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=['_skip_pretrained'])
 
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
@@ -36,18 +36,15 @@ class CXRClassifier(pl.LightningModule):
         self.w_decay = optimizer_config.get('w_decay', 0.05)
         self.task_weights = config.get('training', {}).get('task_weights', None)
 
-        # Loss configuration
-        loss_config = config.get('loss', {})
-        self.loss_type = loss_config.get('type', 'bce')
-
         self.model = CXRDenseNet(config_path=config_path, num_classes=self.num_classes)
         self.criterion = None
 
         # Load pretrained backbone weights (supports any loss type)
+        # Skip when restoring from a trained checkpoint (inference/test)
         loss_config = config.get('loss', {})
         pretrained_ckpt = (loss_config.get('pretrained_checkpoint')
                            or loss_config.get('auc_margin', {}).get('pretrained_checkpoint'))
-        if pretrained_ckpt:
+        if pretrained_ckpt and not _skip_pretrained:
                 data_config = config.get('data', {})
                 working_dir = data_config.get('working_dir', os.getcwd())
                 if not os.path.isabs(pretrained_ckpt):
@@ -97,53 +94,29 @@ class CXRClassifier(pl.LightningModule):
         self.example_input_array = torch.randn(1, 1, 224, 224)
 
     def setup(self, stage: Optional[str] = None):
-        """Setup loss function based on config: BCE or AUC Margin Loss."""
+        """Setup BCE loss function."""
         if self.criterion is not None:
             return
 
-        if self.loss_type == 'auc_margin':
-            auc_config = self.config.get('loss', {}).get('auc_margin', {})
-            margin = auc_config.get('margin', 1.0)
-            print(f"Using AUC Margin Loss v2 (margin={margin})")
-
-            self.criterion = get_loss_function(
-                loss_type='auc_margin', num_classes=self.num_classes,
-                margin=margin
-            )
-            # Negate alpha's gradient so standard descent becomes ascent (maximization)
-            self.criterion.alpha.register_hook(lambda grad: -grad)
+        if self.task_weights and len(self.task_weights) == self.num_classes:
+            print(f"Using task weights from config: {self.task_weights}")
+            pos_weight = torch.tensor(self.task_weights, dtype=torch.float32)
+            self.criterion = get_loss_function(weighted=True, pos_weight=pos_weight)
         else:
-            # BCE loss (default)
-            if self.task_weights and len(self.task_weights) == self.num_classes:
-                print(f"Using task weights from config: {self.task_weights}")
-                pos_weight = torch.tensor(self.task_weights, dtype=torch.float32)
-                self.criterion = get_loss_function(loss_type='bce', weighted=True, pos_weight=pos_weight)
-            else:
-                # Auto-compute pos_weights from training data
-                if self.task_weights and len(self.task_weights) != self.num_classes:
-                    print(f"WARNING: task_weights length ({len(self.task_weights)}) != num_classes ({self.num_classes})")
-                print("Computing pos_weights from training data...")
-                train_labels = torch.tensor(
-                    self.trainer.datamodule.train_dataset.df[self.trainer.datamodule.pathologies].fillna(0).values,
-                    dtype=torch.float32
-                )
-                pos_weight = calculate_pos_weights(train_labels)
-                print(f"Computed pos_weights: {pos_weight}")
-                self.criterion = get_loss_function(loss_type='bce', weighted=True, pos_weight=pos_weight)
+            if self.task_weights and len(self.task_weights) != self.num_classes:
+                print(f"WARNING: task_weights length ({len(self.task_weights)}) != num_classes ({self.num_classes})")
+            print("Computing pos_weights from training data...")
+            train_labels = torch.tensor(
+                self.trainer.datamodule.train_dataset.df[self.trainer.datamodule.pathologies].fillna(0).values,
+                dtype=torch.float32
+            )
+            pos_weight = calculate_pos_weights(train_labels)
+            print(f"Computed pos_weights: {pos_weight}")
+            self.criterion = get_loss_function(weighted=True, pos_weight=pos_weight)
 
     def configure_optimizers(self):
-        """Configure optimizer and scheduler. Includes loss params for AUC Margin Loss."""
-        if isinstance(self.criterion, AUCMarginLoss):
-            # AUC loss: model params get weight decay, loss params (a, b, alpha) do not
-            param_groups = [
-                {'params': self.model.parameters(), 'weight_decay': self.w_decay},
-                {'params': [self.criterion.a, self.criterion.b, self.criterion.alpha],
-                 'weight_decay': 0.0},
-            ]
-        else:
-            param_groups = [{'params': self.model.parameters(), 'weight_decay': self.w_decay}]
-
-        optimizer = torch.optim.AdamW(param_groups, lr=self.learning_rate)
+        """Configure optimizer and scheduler."""
+        optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate, weight_decay=self.w_decay)
 
         scheduler = CosineAnnealingLR(
             optimizer,
@@ -203,12 +176,6 @@ class CXRClassifier(pl.LightningModule):
         self.log('val_acc', self.val_acc, prog_bar=True)
 
         return loss
-
-    def on_train_batch_end(self, outputs, batch, batch_idx):
-        """Project alpha >= 0 after each optimizer step (AUC Margin Loss constraint)."""
-        if isinstance(self.criterion, AUCMarginLoss):
-            with torch.no_grad():
-                self.criterion.alpha.clamp_(min=0)
 
     def on_train_epoch_end(self):
         auroc_scores = self.train_auroc.compute()
@@ -285,10 +252,9 @@ def train(config_path: str = "/gpfs0/tamyr/users/alonfi/XRay/config.yaml"):
         label_suffix = pathologies[0].replace(' ', '_').lower()
     else:
         label_suffix = f'{len(pathologies)}labels'
-    loss_type = config.get('loss', {}).get('type', 'bce')
     hier_suffix = '-hier' if config.get('hierarchy_correction', {}).get('enabled', False) else ''
     base_filename = chkpt_config.get('filename', 'densenet-{epoch:02d}-{val_loss:.3f}')
-    checkpoint_filename = base_filename.replace('densenet-', f'densenet-{label_suffix}-{loss_type}{hier_suffix}-', 1)
+    checkpoint_filename = base_filename.replace('densenet-', f'densenet-{label_suffix}-bce{hier_suffix}-', 1)
 
     checkpoint = ModelCheckpoint(
         dirpath=chkpt_config.get('dirpath', './checkpoints'),

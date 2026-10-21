@@ -75,7 +75,7 @@ def test_inference(config_path: str = "config.yaml"):
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     print(f"  Using device: {device}")
 
-    model = CXRClassifier.load_from_checkpoint(checkpoint_file, strict=False, config_path=config_path)
+    model = CXRClassifier.load_from_checkpoint(checkpoint_file, strict=False, config_path=config_path, _skip_pretrained=True)
     model = model.to(device)
     model.eval()
     print(f"  ✓ Model loaded ({len(model.state_dict())} weights)")

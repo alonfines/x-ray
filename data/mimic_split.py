@@ -95,45 +95,67 @@ def split_dataset():
     pathologies, _ = parse_labels_config(config)
     print(f"\nUsing {len(pathologies)} labels: {pathologies}")
 
-    # Step 4: Stratified splitting
-    strat_target = get_stratification_target(merged_df, pathologies)
+    # Step 4: Subject-level stratified splitting
+    # Split by subject_id to prevent patient overlap between splits.
+    # A single patient can have multiple studies/images — all must land in the same split.
+    print(f"\n  Unique subjects: {merged_df['subject_id'].nunique()}")
+
+    # Build a subject-level DataFrame for splitting: one row per subject,
+    # using the max label value across all their images for stratification.
+    subject_labels = merged_df.groupby('subject_id')[pathologies].max()
+    subject_ids = subject_labels.index.to_series().reset_index(drop=True)
+    subject_labels = subject_labels.reset_index(drop=True)
+
+    strat_target = get_stratification_target(subject_labels, pathologies)
 
     if strat_target is not None:
-        print(f"\nStratification using top pathologies (Mondrian-style):")
+        print(f"\nStratification using top pathologies (Mondrian-style, subject-level):")
         print(f"  Stratification groups: {strat_target.nunique()}")
-        print(f"  Samples per group: min={strat_target.value_counts().min()}, max={strat_target.value_counts().max()}")
+        print(f"  Subjects per group: min={strat_target.value_counts().min()}, max={strat_target.value_counts().max()}")
     else:
         print("\nNo stratification applied (insufficient unique groups)")
 
-    # Split: train vs (val+conformal+test)
+    # Split subjects: train vs (val+conformal+test)
     print(f"\nStep 1: train {train_ratio:.0%} vs rest {(valid_ratio+conformal_ratio+test_ratio):.0%}")
-    train_temp, remaining_df = train_test_split(
-        merged_df,
+    train_subj, remaining_subj = train_test_split(
+        subject_ids,
         test_size=(valid_ratio + conformal_ratio + test_ratio),
         stratify=strat_target if strat_target is not None else None,
         random_state=42
     )
-    print(f"  -> Train (temp): {len(train_temp)}, Remaining: {len(remaining_df)}")
+    print(f"  -> Train subjects: {len(train_subj)}, Remaining: {len(remaining_subj)}")
 
-    # Split remaining: (val+conformal) vs test
-    strat_remaining = get_stratification_target(remaining_df, pathologies)
-    val_conf_df, test_df_final = train_test_split(
-        remaining_df,
+    # Split remaining subjects: (val+conformal) vs test
+    strat_remaining = get_stratification_target(
+        subject_labels.loc[remaining_subj.index], pathologies)
+    val_conf_subj, test_subj = train_test_split(
+        remaining_subj,
         test_size=test_ratio / (valid_ratio + conformal_ratio + test_ratio),
         stratify=strat_remaining if strat_remaining is not None else None,
         random_state=42
     )
-    print(f"  -> Val+Conformal: {len(val_conf_df)}, Test: {len(test_df_final)}")
+    print(f"  -> Val+Conformal subjects: {len(val_conf_subj)}, Test subjects: {len(test_subj)}")
 
-    # Split val+conformal: validation vs conformal
-    strat_val_conf = get_stratification_target(val_conf_df, pathologies)
-    valid_temp, conformal_temp = train_test_split(
-        val_conf_df,
+    # Split val+conformal subjects: validation vs conformal
+    strat_val_conf = get_stratification_target(
+        subject_labels.loc[val_conf_subj.index], pathologies)
+    valid_subj, conformal_subj = train_test_split(
+        val_conf_subj,
         test_size=conformal_ratio / (valid_ratio + conformal_ratio),
         stratify=strat_val_conf if strat_val_conf is not None else None,
         random_state=42
     )
-    print(f"  -> Validation: {len(valid_temp)}, Conformal: {len(conformal_temp)}")
+    print(f"  -> Validation subjects: {len(valid_subj)}, Conformal subjects: {len(conformal_subj)}")
+
+    # Map subject splits back to image-level DataFrames
+    train_temp = merged_df[merged_df['subject_id'].isin(train_subj.values)]
+    valid_temp = merged_df[merged_df['subject_id'].isin(valid_subj.values)]
+    conformal_temp = merged_df[merged_df['subject_id'].isin(conformal_subj.values)]
+    test_df_final = merged_df[merged_df['subject_id'].isin(test_subj.values)]
+
+    print(f"\n  Image counts after subject-level split:")
+    print(f"    Train: {len(train_temp)}, Validation: {len(valid_temp)}, "
+          f"Conformal: {len(conformal_temp)}, Test: {len(test_df_final)}")
 
     # Step 5: Filter uncertain labels from train/validation/conformal
     print(f"\nFiltering uncertain (-1.0) labels from train/validation/conformal sets...")

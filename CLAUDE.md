@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a DenseNet-based chest X-ray classification model supporting both **CheXpert** and **MIMIC-CXR-JPG** datasets. The project trains a deep learning model to classify multiple pathological conditions from chest radiographs.
+This is a DenseNet-based chest X-ray classification model using the **MIMIC-CXR-JPG** dataset. The project trains a unified multi-label deep learning model to classify 13 pathological conditions from chest radiographs, with hierarchy label correction and conformal prediction calibration.
 
-**Key Goal:** Build and test the training pipeline locally before uploading to production servers.
+**Current state:** Unified model trained on full MIMIC dataset with hierarchy correction. Next step: experiment with different conformal prediction methods.
 
 ## Data Package (`data/`)
 
@@ -17,13 +17,11 @@ data/
 ├── __init__.py          # Shared constants (ALL_CHEXPERT_LABELS), parse_labels_config(), get_data_module() factory
 ├── split_utils.py       # Shared stratification & statistics helpers
 ├── hierarchy.py         # Disease hierarchy definition & label correction
-├── chexpert.py          # CheXpertDataset + CheXpertDataModule
-├── chexpert_split.py    # CheXpert splitting script
 ├── mimic.py             # MIMICDataset + MIMICDataModule
 └── mimic_split.py       # MIMIC splitting script (scans disk for existing files, filters by view)
 ```
 
-- **`get_data_module(config_path)`** is the main entry point. It reads `config['dataset']` (`"chexpert"` or `"mimic"`) and returns the appropriate DataModule.
+- **`get_data_module(config_path)`** is the main entry point. Returns the MIMIC DataModule.
 - **`parse_labels_config(config)`** returns `(pathologies, use_all_labels)` based on `config['labels']`.
 - All consumer scripts (`train.py`, `test.py`, `calculate_conformal_pred.py`) import from `data` package.
 
@@ -31,27 +29,15 @@ data/
 
 ### CSV Organization
 
-Split CSVs are organized by dataset under `csv_files/`:
+Split CSVs under `csv_files/mimic/`:
 
 ```
-csv_files/
-├── chexpert/
-│   ├── train_split.csv
-│   ├── valid_split.csv
-│   ├── conformal_split.csv
-│   ├── test_split.csv
-│   ├── results.csv
-│   └── conformal_predictions.csv
-└── mimic/
-    ├── train_split.csv
-    ├── valid_split.csv
-    ├── conformal_split.csv
-    └── test_split.csv
+csv_files/mimic/
+├── train_split.csv
+├── valid_split.csv
+├── conformal_split.csv
+└── test_split.csv
 ```
-
-### CheXpert Raw Data
-
-Located at `data.chexpert_dir` (config.yaml). Contains `train/` and `valid/` image directories plus raw `train.csv` and `valid.csv`.
 
 ### MIMIC-CXR-JPG Raw Data
 
@@ -69,16 +55,15 @@ MIMIC-CXR/
 
 ### CSV Format
 
-Both datasets use the same 14 CheXpert pathology labels:
+Uses the 14 CheXpert pathology labels:
 - No Finding, Enlarged Cardiomediastinum, Cardiomegaly, Lung Opacity, Lung Lesion, Edema, Consolidation, Pneumonia, Atelectasis, Pneumothorax, Pleural Effusion, Pleural Other, Fracture, Support Devices
 - Values: 1.0 (positive), 0.0 (negative), -1.0 (uncertain), empty (unlabeled)
 
-**CheXpert CSVs** have a `Path` column for image paths.
 **MIMIC CSVs** have `dicom_id`, `subject_id`, `study_id` columns; image paths are constructed from these.
 
 ### Dataset Splitting Strategy
 
-Both datasets are split into four stratified sets with the same ratios:
+The dataset is split into four stratified sets:
 
 1. **Train Set**: 70% for model training
 2. **Validation Set**: 10% for validation (early stopping)
@@ -96,10 +81,6 @@ Both datasets are split into four stratified sets with the same ratios:
 
 **Creating splits:**
 ```bash
-# CheXpert
-PYTHONPATH=. python data/chexpert_split.py
-
-# MIMIC-CXR
 PYTHONPATH=. python data/mimic_split.py
 ```
 
@@ -118,36 +99,24 @@ The login node is for data transfer and job submission ONLY. Do NOT run Python s
 
 ## Quick Start
 
-**For Code Development (on login node):**
-- Edit and commit scripts to git
-- Run only minimal validation scripts if absolutely necessary
-- Use `runai` to submit all actual training/processing jobs
-
 **For Running on Compute Nodes (via runai):**
 
-1. Create the stratified splits:
+1. Train the model:
 ```bash
-# CheXpert
-runai submit split_job python -c "import sys; sys.path.insert(0,'.'); exec(open('data/chexpert_split.py').read())"
-
-# MIMIC-CXR
-runai submit split_job python -c "import sys; sys.path.insert(0,'.'); exec(open('data/mimic_split.py').read())"
+python train.py --config config_hier_unified.yaml
 ```
 
-2. Train the model:
+2. Calibrate conformal thresholds:
 ```bash
-runai submit train_job python train.py
+python calculate_conformal_pred.py --config config_hier_unified.yaml
 ```
 
 3. Run test evaluation:
 ```bash
-runai submit test_job python test.py
+python test.py --config config_hier_unified.yaml
 ```
 
-**Configuration:**
-- Set `dataset: "chexpert"` or `dataset: "mimic"` in config.yaml to switch datasets
-- All scripts automatically use the correct DataModule via `get_data_module()`
-- Update paths in the `data:` or `mimic:` sections of config.yaml as needed
+Outputs go to `conformal_calibration/mimic/hier_unified/` (thresholds, confusion matrices) and `results/outputs/mimic/` (test CSV).
 
 ## Hierarchy Label Correction
 
@@ -162,97 +131,31 @@ CheXpert labels suffer from a labeling artifact: when a child finding is positiv
 
 **Implementation:**
 - `data/hierarchy.py`: `apply_hierarchy_correction_to_df()` corrects a DataFrame in-place. Only definite positives (1.0) trigger propagation — uncertain (-1) and NaN do not.
-- `data/mimic.py` / `data/chexpert.py`: Both DataModules read `hierarchy_correction.enabled` from config and apply correction in `setup()`.
+- `data/mimic.py`: DataModule reads `hierarchy_correction.enabled` from config and applies correction in `setup()`.
 - `train.py`: Adds `-hier-` suffix to checkpoint filenames when hierarchy correction is enabled.
-- `utils.py`: Parallel constants (`CHECKPOINT_DIR_HIER`, `OUTPUT_BASE_HIER`, etc.) and parameterized helpers (`find_checkpoint(hierarchy=True)`, `generate_config(hierarchy=True)`).
-
-**Separate pathway:** Hierarchy-corrected models use entirely separate directories to avoid overwriting existing results:
-- Configs: `configs/per_label_hier/`
-- Checkpoints: `checkpoints/mimic/per_label_hier/`
-- Conformal output: `conformal_calibration/mimic/per_label_hier/` and `per_label_hier_with_val/`
-
-**Running (per-label):**
-```bash
-# Train with hierarchy correction
-python train_per_label.py --label 'Edema' --hierarchy
-
-# Calibrate (after training)
-python calibrate_per_label.py --label 'Edema' --hierarchy
-
-# Test (after calibration)
-python test_per_label.py --label 'Edema' --hierarchy
-
-# Omit --label to process all labels
-# Combine with --include-val for conformal+validation calibration
-```
-
-**Running (unified model):** Use `config_hier_unified.yaml` (hierarchy-enabled variant of config.yaml with separate output dirs):
-```bash
-# Train
-python train.py --config config_hier_unified.yaml
-
-# Calibrate conformal thresholds
-python calculate_conformal_pred.py --config config_hier_unified.yaml
-
-# Test
-python test.py --config config_hier_unified.yaml
-```
-Outputs go to `conformal_calibration/mimic/hier_unified/` (thresholds, confusion matrices) and `results/outputs/mimic/` (test CSV).
-
-**Job submissions:** `submit_per_label_hier_jobs.txt` contains runai-bgu commands for all 14 labels.
-
-**Note:** Labels without hierarchy parents (Pneumothorax, Pleural Effusion, Fracture, Support Devices, No Finding) are unaffected by `--hierarchy`. Training them with the flag is harmless but produces identical results.
 
 ## Key Implementation Notes
 
-- **data/__init__.py**: Exports `ALL_CHEXPERT_LABELS`, `parse_labels_config()`, and `get_data_module()` factory. The factory reads `config['dataset']` to return the correct DataModule.
-- **data/chexpert.py**: `CheXpertDataset` + `CheXpertDataModule`. Loads from four split CSVs. Maps image paths from the `Path` column, routing to `train/` or `valid/` image directories.
+- **data/__init__.py**: Exports `ALL_CHEXPERT_LABELS`, `parse_labels_config()`, and `get_data_module()` factory.
 - **data/mimic.py**: `MIMICDataset` + `MIMICDataModule`. Builds image paths from `(subject_id, study_id, dicom_id)` columns. All images come from a single `files_dir`.
-- **data/chexpert_split.py**: Splits CheXpert raw CSVs into train/validation/conformal/test. Filters uncertain labels from non-test sets.
 - **data/mimic_split.py**: Joins metadata + labels, filters to configured views (AP/PA), scans disk for existing files, then splits. Re-runnable as download progresses.
 - **data/split_utils.py**: Shared Mondrian stratification logic and split statistics printing.
-- **config.yaml**: `dataset` field selects active dataset. `data:` section has CheXpert paths. `mimic:` section has MIMIC paths and `views` filter. `labels: "all"` enables 13-label mode (excluding No Finding) with No Finding preprocessing.
-- **config.yaml**: `loss.type` selects the training loss: `"bce"` or `"auc_margin"` (AUC Margin Loss from Yuan et al. 2021).
-- **config.yaml**: Optimizer hyperparameters under `optimizer:`. Checkpoint loading under `evaluation:`. Output paths under `output:`.
-- **losses/**: Loss implementations. `get_loss_function()` factory, `AUCMarginLoss`, BCE with pos_weights.
-- **densenet_model.py**: `CXRDenseNet` model class (DenseNet wrapper with torchxrayvision pretrained weights).
-- **train.py**: Trains on train_split, validates on valid_split. Uses `get_data_module()` to load the correct dataset. Supports `reinit_classifier` (re-initialize the classifier head when loading a pretrained checkpoint) and WandB logging via `WandbLogger`.
-- **utils.py**: Shared utilities for per-label scripts. Exports `ALL_LABELS`, `PROJECT_ROOT`, `CHECKPOINT_DIR`, `OUTPUT_BASE` (and `*_HIER` variants), `safe_name()`, `find_checkpoint(hierarchy=)`, `generate_config(hierarchy=)`, `parse_labels()`.
-- **train_per_label.py**: Trains 14 independent binary (one-vs-rest) models, one per CheXpert label. Iterates sequentially, skipping labels that already have a checkpoint in `checkpoints/mimic/per_label/`. Supports `--label 'Label Name'` and `--hierarchy` CLI args.
-- **calibrate_per_label.py**: Calibrates BCOPS conformal thresholds per label. Caches model predictions for efficient re-calibration. Supports `--hierarchy` flag. Outputs `bcops_thresholds.pt` per label.
-- **test_per_label.py**: Tests per-label models with BCOPS conformal predictions. Supports `--hierarchy` flag. Outputs CSV results and 3x3 confusion matrix PNGs (true Positive/Uncertain/Negative vs predicted).
-- **test.py**: Runs inference on test_split, saves predictions CSV to `results/outputs/`, prints per-label AUC (filtering uncertain labels).
 - **data/hierarchy.py**: Disease hierarchy (`CHEXPERT_HIERARCHY`), `apply_hierarchy_correction_to_df()`.
+- **config.yaml**: Base config. `mimic:` section has MIMIC paths and `views` filter. `labels: "all"` enables 13-label mode (excluding No Finding) with No Finding preprocessing.
 - **config_hier_unified.yaml**: Hierarchy-enabled config for the unified model. Points to the hier checkpoint, enables hierarchy correction, and outputs to `conformal_calibration/mimic/hier_unified/`.
+- **config.yaml**: Optimizer hyperparameters under `optimizer:`. Checkpoint loading under `evaluation:`. Output paths under `output:`.
+- **losses/**: BCE loss implementation. `get_loss_function()` factory with auto-computed pos_weights.
+- **densenet_model.py**: `CXRDenseNet` model class (DenseNet wrapper with torchxrayvision pretrained weights).
+- **train.py**: Trains on train_split, validates on valid_split. Uses `get_data_module()` to load the dataset. Supports `reinit_classifier` (re-initialize the classifier head when loading a pretrained checkpoint) and WandB logging via `WandbLogger`.
+- **test.py**: Runs inference on test_split, saves predictions CSV to `results/outputs/`, prints per-label AUC (filtering uncertain labels).
 - **calculate_conformal_pred.py**: Conformal prediction calibration using conformal_split.
-- **results/scripts/label_distribution.py**: Reads all MIMIC split CSVs, verifies no sample overlap, generates per-split and combined label distribution bar charts saved to `results/images/`.
-- **results/scripts/auc_unified_model.py**: Reads a test inference CSV from `results/outputs/`, computes per-label AUC, and saves a bar chart to `results/images/`.
 
-## Per-Label Binary Pipeline
+## Trained Model
 
-Trains 14 independent binary classifiers (one per CheXpert label) starting from a pretrained all-labels backbone. Each per-label model re-initializes the classifier head and trains with BCE loss. After training, BCOPS conformal thresholds are calibrated and tested.
-
-**Components:**
-- `utils.py`: Shared constants (`ALL_LABELS`, `CHECKPOINT_DIR`, `OUTPUT_BASE`, and `*_HIER` variants) and helpers (`safe_name()`, `find_checkpoint(hierarchy=)`, `generate_config(hierarchy=)`, `parse_labels()`).
-- `train_per_label.py`: Training orchestrator. Calls `train.py` as a subprocess for each label.
-- `calibrate_per_label.py`: Calibrates BCOPS conformal thresholds per label using the conformal split. Caches model predictions for efficient re-calibration with different alpha.
-- `test_per_label.py`: Tests per-label models, applies BCOPS thresholds, outputs CSV + 3x3 confusion matrix PNG per label.
-- `configs/per_label/`: Auto-generated YAML configs (one per label).
-
-**Running:**
-```bash
-# Train
-python train_per_label.py --label 'Atelectasis'
-
-# Calibrate (after training)
-python calibrate_per_label.py --label 'Atelectasis'
-
-# Test (after calibration)
-python test_per_label.py --label 'Atelectasis'
-
-# Omit --label to process all labels
-# Add --hierarchy to use hierarchy label correction (separate checkpoints/output dirs)
-```
+Single unified checkpoint: `checkpoints/mimic/densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809.ckpt`
+- Trained on full MIMIC-CXR dataset with hierarchy correction enabled
+- Test inference CSV: `results/outputs/mimic/densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809.csv`
+- Conformal calibration: `conformal_calibration/mimic/hier_unified/`
 
 ## MIMIC-CXR Data Utilities
 
