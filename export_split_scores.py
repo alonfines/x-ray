@@ -35,7 +35,13 @@ def build_csv(predictions, true_labels, pathologies, sample_ids):
     return pd.concat([pd.DataFrame({'sample_id': range(num_samples)}), pred_df], axis=1)
 
 
-def main(config_path: str = "config.yaml"):
+AVAILABLE_SPLITS = ['train', 'validation', 'conformal']
+
+
+def main(config_path: str = "config.yaml", splits_to_export: list = None):
+    if splits_to_export is None:
+        splits_to_export = AVAILABLE_SPLITS
+
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
@@ -72,12 +78,19 @@ def main(config_path: str = "config.yaml"):
     output_dir = Path(working_dir) / "results" / "outputs" / dataset_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    splits = {
+    # Train dataloader with shuffle=False for correct ID alignment
+    train_loader = torch.utils.data.DataLoader(
+        data_module.train_dataset, batch_size=data_module.batch_size,
+        num_workers=4, shuffle=False, pin_memory=True)
+
+    all_splits = {
+        'train': (train_loader, data_module.train_dataset),
         'validation': (data_module.val_dataloader(), data_module.val_dataset),
         'conformal': (data_module.conformal_dataloader(), data_module.conformal_dataset),
     }
 
-    for split_name, (dataloader, dataset) in splits.items():
+    for split_name in splits_to_export:
+        dataloader, dataset = all_splits[split_name]
         print(f"\n--- {split_name} split ({len(dataset)} samples) ---")
         preds, labels = run_inference(model, dataloader, device)
 
@@ -96,5 +109,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default='/gpfs0/tamyr/users/alonfi/XRay/config_hier_unified.yaml')
+    parser.add_argument('--splits', nargs='+', choices=AVAILABLE_SPLITS, default=None,
+                        help='Splits to export (default: all). E.g. --splits train validation')
     args = parser.parse_args()
-    main(config_path=args.config)
+    main(config_path=args.config, splits_to_export=args.splits)
