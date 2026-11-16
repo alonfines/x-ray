@@ -25,7 +25,7 @@ Importable
 from __future__ import annotations
 
 import argparse
-from typing import Dict, List, Sequence
+from collections.abc import Sequence
 
 import conformal_common as cc
 

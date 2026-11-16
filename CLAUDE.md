@@ -143,12 +143,14 @@ CheXpert labels suffer from a labeling artifact: when a child finding is positiv
 - **data/hierarchy.py**: Disease hierarchy (`CHEXPERT_HIERARCHY`), `apply_hierarchy_correction_to_df()`.
 - **config.yaml**: Base config. `mimic:` section has MIMIC paths and `views` filter. `labels: "all"` enables 13-label mode (excluding No Finding) with No Finding preprocessing.
 - **config_hier_unified.yaml**: Hierarchy-enabled config for the unified model. Points to the hier checkpoint, enables hierarchy correction, and outputs to `conformal_calibration/mimic/hier_unified/`.
-- **config.yaml**: Optimizer hyperparameters under `optimizer:`. Checkpoint loading under `evaluation:`. Output paths under `output:`.
-- **losses/**: BCE loss implementation. `get_loss_function()` factory with auto-computed pos_weights.
+- **config.yaml** (cont.): Optimizer hyperparameters under `optimizer:`, pretrained-backbone loading under `loss:` (`pretrained_checkpoint`, `reinit_classifier`), checkpoint for inference under `evaluation:`, conformal settings under `conformal:`.
+- **losses/**: BCE loss implementation. `get_loss_function(weighted, pos_weight)` factory; `calculate_pos_weights()` computes pos_weights from training labels.
 - **densenet_model.py**: `CXRDenseNet` model class (DenseNet wrapper with torchxrayvision pretrained weights).
 - **train.py**: Trains on train_split, validates on valid_split. Uses `get_data_module()` to load the dataset. Supports `reinit_classifier` (re-initialize the classifier head when loading a pretrained checkpoint) and WandB logging via `WandbLogger`.
+- **inference.py**: Shared helpers used by `test.py`, `calculate_conformal_pred.py` and `export_split_scores.py`: `load_model()` (checkpoint lookup + eval-mode model + device), `predict()`, `build_results_df()`.
 - **test.py**: Runs inference on test_split, saves predictions CSV to `results/outputs/`, prints per-label AUC (filtering uncertain labels).
 - **calculate_conformal_pred.py**: Conformal prediction calibration using conformal_split.
+- **Research modules (repo root)**: `conformal_common.py` (shared loading/Gate 0/scores), `max_rank.py`, `bonferrony.py`, `lp_scp.py`, `compare_methods.py`, `bootstrap_coverage.py`. Imported by `experiments/*`; they operate on the frozen CSVs, not the model.
 - **results/scripts/**: empty as of the 2026-10-28 clean restart — every plotting script was
   deleted along with `results/images/`. New figures are written fresh; the old ones are in
   `~/Desktop/xray_pre_reset_backup_20261028_104145.tar.gz` if a reference is needed.
@@ -179,10 +181,10 @@ test subjects also appeared in calibration), which had invalidated the coverage
 guarantees of every experiment built on them. Every new experiment re-verifies the overlap
 as its Gate 0.
 
-- **export_split_scores.py**: Exports validation + conformal predictions for the unified
-  model. `python export_split_scores.py --config config_hier_unified.yaml`.
+- **export_split_scores.py**: Exports train / validation / conformal predictions for the unified
+  model (`--splits` selects a subset). `python export_split_scores.py --config config_hier_unified.yaml`.
 
-## Per-Label Pipeline (retired, kept on disk only)
+## Per-Label Pipeline (retired and deleted)
 
 The per-label one-vs-rest pathway is **retired and will not be retrained** (Alon,
 2026-10-21). All conformal work runs on unified-model probabilities. Standing caveat: the
@@ -191,15 +193,10 @@ Cardiomediastinum/Cardiomegaly 0.936 → 0.997, Consolidation/Pneumonia 0.832 �
 any dependence claim computed on it partly measures the backbone — state this, don't
 retrain around it.
 
-Files still present but unused: `utils.py`, `export_scores.py`, `train_per_label.py`,
-`calibrate_per_label.py`, `test_per_label.py`, `configs/per_label/`,
-`configs/per_label_hier/`. Their checkpoints were partial-data and leaky; don't resurrect
-them.
-
-- **export_scores.py**: Exports conformal + validation probabilities with subject IDs.
-  `__main__` runs `export_unified_hier()` then `export_per_label_hier()`; labels without
-  a checkpoint are skipped with a `[SKIP]` line. `export_per_label()` (non-hier) exists
-  but is not called from `__main__`.
+Its code (`utils.py`, `export_scores.py`, `train_per_label.py`, `calibrate_per_label.py`,
+`test_per_label.py`, `configs/per_label*/`) was deleted in the /organize cleanup; it is
+recoverable from git commit `3662897`. Its checkpoints were partial-data and leaky; don't
+resurrect them.
 
 ## MIMIC-CXR Data Utilities
 

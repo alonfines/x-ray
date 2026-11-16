@@ -6,7 +6,6 @@ Apply No Finding logic: if No Finding=1.0, set all other labels to 0.0 (except S
 import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
-import sys
 
 def main():
     """Create filtered CSV with existing images and corrected labels."""

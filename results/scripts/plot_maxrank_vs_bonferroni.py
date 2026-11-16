@@ -16,7 +16,6 @@ Usage:
 import textwrap
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 plt.rcParams["font.weight"] = "bold"
 plt.rcParams["axes.labelweight"] = "bold"

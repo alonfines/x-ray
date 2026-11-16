@@ -25,7 +25,6 @@ Importable
 from __future__ import annotations
 
 import argparse
-from typing import Dict, List
 
 import numpy as np
 

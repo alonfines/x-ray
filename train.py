@@ -1,12 +1,12 @@
 import os
 import yaml
 import torch
+import torch.nn as nn
 import lightning as pl
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torchmetrics import Accuracy, AUROC
-from typing import Optional
 
 from data import get_data_module, parse_labels_config
 from densenet_model import CXRDenseNet
@@ -42,38 +42,35 @@ class CXRClassifier(pl.LightningModule):
         # Load pretrained backbone weights (supports any loss type)
         # Skip when restoring from a trained checkpoint (inference/test)
         loss_config = config.get('loss', {})
-        pretrained_ckpt = (loss_config.get('pretrained_checkpoint')
-                           or loss_config.get('auc_margin', {}).get('pretrained_checkpoint'))
+        pretrained_ckpt = loss_config.get('pretrained_checkpoint')
         if pretrained_ckpt and not _skip_pretrained:
-                data_config = config.get('data', {})
-                working_dir = data_config.get('working_dir', os.getcwd())
-                if not os.path.isabs(pretrained_ckpt):
-                    pretrained_ckpt = os.path.join(working_dir, pretrained_ckpt)
-                print(f"[Two-stage] Loading BCE-pretrained weights from: {pretrained_ckpt}")
-                ckpt = torch.load(pretrained_ckpt, map_location='cpu', weights_only=False)
-                # Extract model weights from Lightning checkpoint, skipping
-                # keys with shape mismatches (e.g. classifier head when num_classes differs)
-                current_sd = self.model.state_dict()
-                state_dict = {}
-                for k, v in ckpt['state_dict'].items():
-                    if not k.startswith('model.'):
-                        continue
-                    key = k.replace('model.', '', 1)
-                    if key in current_sd and current_sd[key].shape != v.shape:
-                        print(f"[Two-stage] Skipping {key}: shape {v.shape} != {current_sd[key].shape}")
-                        continue
-                    state_dict[key] = v
-                self.model.load_state_dict(state_dict, strict=False)
-                print(f"[Two-stage] Loaded {len(state_dict)} weight tensors")
+            data_config = config.get('data', {})
+            working_dir = data_config.get('working_dir', os.getcwd())
+            if not os.path.isabs(pretrained_ckpt):
+                pretrained_ckpt = os.path.join(working_dir, pretrained_ckpt)
+            print(f"[Two-stage] Loading BCE-pretrained weights from: {pretrained_ckpt}")
+            ckpt = torch.load(pretrained_ckpt, map_location='cpu', weights_only=False)
+            # Extract model weights from Lightning checkpoint, skipping
+            # keys with shape mismatches (e.g. classifier head when num_classes differs)
+            current_sd = self.model.state_dict()
+            state_dict = {}
+            for k, v in ckpt['state_dict'].items():
+                if not k.startswith('model.'):
+                    continue
+                key = k.replace('model.', '', 1)
+                if key in current_sd and current_sd[key].shape != v.shape:
+                    print(f"[Two-stage] Skipping {key}: shape {v.shape} != {current_sd[key].shape}")
+                    continue
+                state_dict[key] = v
+            self.model.load_state_dict(state_dict, strict=False)
+            print(f"[Two-stage] Loaded {len(state_dict)} weight tensors")
 
-                # Reinitialize classifier head with random weights (paper recommendation)
-                reinit = (loss_config.get('reinit_classifier')
-                          or loss_config.get('auc_margin', {}).get('reinit_classifier', True))
-                if reinit:
-                    import torch.nn as nn
-                    nn.init.xavier_uniform_(self.model.model.classifier.weight)
-                    nn.init.zeros_(self.model.model.classifier.bias)
-                    print(f"[Two-stage] Reinitialized classifier head ({self.model.model.classifier})")
+            # Reinitialize classifier head with random weights (paper recommendation)
+            if loss_config.get('reinit_classifier', True):
+                import torch.nn as nn
+                nn.init.xavier_uniform_(self.model.model.classifier.weight)
+                nn.init.zeros_(self.model.model.classifier.bias)
+                print(f"[Two-stage] Reinitialized classifier head ({self.model.model.classifier})")
 
         # Metrics
         self._binary_mode = self.num_classes == 1
@@ -88,12 +85,9 @@ class CXRClassifier(pl.LightningModule):
             self.train_auroc = AUROC(task='multilabel', num_labels=self.num_classes, average=None)
             self.val_auroc = AUROC(task='multilabel', num_labels=self.num_classes, average=None)
 
-        self.val_preds = []
-        self.val_labels = []
-
         self.example_input_array = torch.randn(1, 1, 224, 224)
 
-    def setup(self, stage: Optional[str] = None):
+    def setup(self, stage: str | None = None):
         """Setup BCE loss function."""
         if self.criterion is not None:
             return
@@ -145,7 +139,6 @@ class CXRClassifier(pl.LightningModule):
         logits, labels, loss = self._common_step(batch, batch_idx)
         probs = torch.sigmoid(logits)
 
-        # Labels are already perfectly clean from data.py
         if self._binary_mode:
             self.train_acc(probs.squeeze(-1), labels.int().squeeze(-1))
             self.train_auroc(probs.squeeze(-1), labels.int().squeeze(-1))
@@ -168,9 +161,6 @@ class CXRClassifier(pl.LightningModule):
         else:
             self.val_acc(probs, labels.int())
             self.val_auroc(probs, labels.int())
-
-        self.val_preds.append(probs.detach().cpu())
-        self.val_labels.append(labels.detach().cpu())
 
         self.log('val_loss', loss, prog_bar=True)
         self.log('val_acc', self.val_acc, prog_bar=True)
@@ -196,8 +186,6 @@ class CXRClassifier(pl.LightningModule):
         self.log('val_auroc_mean', mean_auroc, prog_bar=True)
 
         self.val_auroc.reset()
-        self.val_preds.clear()
-        self.val_labels.clear()
 
 
 def train(config_path: str = "/gpfs0/tamyr/users/alonfi/XRay/config.yaml"):
@@ -213,7 +201,7 @@ def train(config_path: str = "/gpfs0/tamyr/users/alonfi/XRay/config.yaml"):
     model = CXRClassifier(config_path=config_path)
 
     # Auto wandb name for single-label runs
-    pathologies, _ = parse_labels_config(config)
+    pathologies, use_all = parse_labels_config(config)
     if len(pathologies) == 1 and 'name' not in logger_config:
         default_name = f'binary_{pathologies[0].replace(" ", "_").lower()}'
     else:
@@ -245,7 +233,6 @@ def train(config_path: str = "/gpfs0/tamyr/users/alonfi/XRay/config.yaml"):
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
 
     # Dynamically set checkpoint filename based on label mode and loss type
-    pathologies, use_all = parse_labels_config(config)
     if use_all:
         label_suffix = 'alllabels'
     elif len(pathologies) == 1:

@@ -1,155 +1,67 @@
 import os
-import yaml
-import torch
-import pandas as pd
 from pathlib import Path
-from train import CXRClassifier
-from data import get_data_module, parse_labels_config
-from tqdm import tqdm
+
+import yaml
 from sklearn.metrics import roc_auc_score
 
-def save_results_to_csv(predictions: torch.Tensor, true_labels: torch.Tensor, pathologies: list, csv_path: str, sample_ids: pd.DataFrame = None) -> None:
-    """Save model predictions and true labels to CSV.
+from data import get_data_module, parse_labels_config
+from inference import build_results_df, load_model, predict
 
-    Args:
-        sample_ids: Optional DataFrame with identifier columns (e.g. subject_id,
-            study_id, dicom_id for MIMIC). When provided, these columns appear
-            first instead of a numeric sample_id.
-    """
-    num_samples = predictions.shape[0]
-    predictions_np = predictions.cpu().numpy()
-    true_labels_np = true_labels.cpu().numpy()
 
-    # Build prediction columns
-    pred_data = {}
-    for class_idx, pathology in enumerate(pathologies):
-        pred_data[f'{pathology}_prob'] = [f"{predictions_np[i, class_idx]:.6f}" for i in range(num_samples)]
-        pred_data[f'{pathology}_true_label'] = true_labels_np[:, class_idx].astype(int)
-
-    pred_df = pd.DataFrame(pred_data)
-
-    if sample_ids is not None and len(sample_ids) == num_samples:
-        df = pd.concat([sample_ids.reset_index(drop=True), pred_df], axis=1)
-    else:
-        df = pd.concat([pd.DataFrame({'sample_id': range(num_samples)}), pred_df], axis=1)
-
-    df.to_csv(csv_path, index=False)
-
-    print(f"\n✓ Saved test results to: {csv_path}")
+def print_aucs(predictions, true_labels, pathologies: list[str]) -> None:
+    """Print per-label AUC, excluding uncertain (-1.0) labels."""
+    print("-" * 45)
+    aucs = []
+    for i, pathology in enumerate(pathologies):
+        mask = true_labels[:, i] >= 0
+        try:
+            auc = roc_auc_score(true_labels[mask, i], predictions[mask, i])
+        except ValueError:
+            print(f"  {pathology:<35} N/A (single class)")
+            continue
+        aucs.append(auc)
+        print(f"  {pathology:<35} {auc:.4f}  (n={mask.sum()})")
+    if aucs:
+        print("-" * 45)
+        print(f"  {'Mean AUC':<35} {sum(aucs) / len(aucs):.4f}")
 
 
 def test_inference(config_path: str = "config.yaml"):
-    """
-    Test inference: Run model on test set and save predictions + true labels.
-    """
+    """Run the model on the test split; save predictions + true labels and print per-label AUC."""
     print("\n" + "=" * 70)
     print("TEST INFERENCE: Model prediction on test set")
     print("=" * 70)
 
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
+    working_dir = config.get('data', {}).get('working_dir', os.getcwd())
+    pathologies, _ = parse_labels_config(config)
 
-    eval_config = config.get('evaluation', {})
-    output_config = config.get('output', {})
-    data_config = config.get('data', {})
-    working_dir = data_config.get('working_dir', os.getcwd())
     print("\n[1] Loading trained model...")
-    checkpoint_path = eval_config.get('checkpoint_path')
-
-    if checkpoint_path:
-        checkpoint_file = Path(checkpoint_path)
-        if not checkpoint_file.exists():
-            print(f"  ✗ Checkpoint not found at: {checkpoint_path}")
-            return
-    else:
-        checkpoint_dir = eval_config.get('checkpoint_dir', './checkpoints')
-        checkpoint_files = list(Path(checkpoint_dir).glob('densenet-*.ckpt'))
-        if not checkpoint_files:
-            print(f"  ✗ No checkpoints found in {checkpoint_dir}")
-            return
-        checkpoint_file = max(checkpoint_files, key=os.path.getctime)
-
-    print(f"  ✓ Found checkpoint: {checkpoint_file.name}")
-
-    # Hardware Acceleration
-    device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-    print(f"  Using device: {device}")
-
-    model = CXRClassifier.load_from_checkpoint(checkpoint_file, strict=False, config_path=config_path, _skip_pretrained=True)
-    model = model.to(device)
-    model.eval()
-    print(f"  ✓ Model loaded ({len(model.state_dict())} weights)")
+    model, checkpoint_file, device = load_model(config_path)
 
     print("\n[2] Loading test data...")
     data_module = get_data_module(config_path=config_path, num_workers=4)
     data_module.setup(stage='test')
-    print(f"  ✓ Test dataloader ready")
 
-    pathologies, _ = parse_labels_config(config)
-
-    # Extract subject identifiers from the test dataset (order matches DataLoader since shuffle=False)
+    # Row order matches the DataLoader (shuffle=False)
     test_df = data_module.test_dataset.df
     id_cols = [c for c in ['subject_id', 'study_id', 'dicom_id', 'Path'] if c in test_df.columns]
-    sample_ids = test_df[id_cols].reset_index(drop=True) if id_cols else None
+    sample_ids = test_df[id_cols] if id_cols else None
 
     print("\n[3] Running inference on test set...")
-    test_loader = data_module.test_dataloader()
+    predictions, true_labels = predict(model, data_module.test_dataloader(), device)
+    print(f"  ✓ Inference complete: {len(predictions)} samples")
 
-    all_predictions = []
-    all_true_labels = []
-
-    with torch.no_grad():
-        # Wrap test_loader with tqdm for the progress bar
-        for batch_idx, (images, labels) in tqdm(enumerate(test_loader), total=len(test_loader), desc="Calculating", unit="batch"):
-            # Send tensors to GPU/MPS
-            images = images.to(device)
-
-            logits = model(images)
-            probs = torch.sigmoid(logits).cpu()
-            labels = labels.cpu()
-
-            all_predictions.append(probs)
-            all_true_labels.append(labels)
-
-    # Concatenate results
-    if len(all_predictions) > 0:
-        all_predictions = torch.cat(all_predictions, dim=0)
-        all_true_labels = torch.cat(all_true_labels, dim=0)
-        print(f"  ✓ Inference complete: {len(all_predictions)} samples")
-    else:
-        print("  ⚠ Warning: Test dataloader is empty")
-        return
-
-    # Save to CSV
     print("\n[4] Saving results...")
-    dataset_name = config.get('dataset', 'chexpert')
-    checkpoint_stem = checkpoint_file.stem
-    output_dir = Path(working_dir) / "results" / "outputs" / dataset_name
+    output_dir = Path(working_dir) / "results" / "outputs" / config.get('dataset', 'mimic')
     output_dir.mkdir(parents=True, exist_ok=True)
-    csv_path = output_dir / f"{checkpoint_stem}.csv"
-    save_results_to_csv(all_predictions, all_true_labels, pathologies, str(csv_path), sample_ids)
+    csv_path = output_dir / f"{checkpoint_file.stem}.csv"
+    build_results_df(predictions, true_labels, pathologies, sample_ids).to_csv(csv_path, index=False)
+    print(f"  ✓ Saved test results to: {csv_path}")
 
-    # Compute and print AUC per label
     print("\n[5] AUC Results:")
-    print("-" * 45)
-    predictions_np = all_predictions.numpy()
-    true_labels_np = all_true_labels.numpy()
-    aucs = []
-    for i, pathology in enumerate(pathologies):
-        # Filter out uncertain (-1.0) labels for AUC computation
-        mask = true_labels_np[:, i] >= 0
-        y_true = true_labels_np[mask, i]
-        y_pred = predictions_np[mask, i]
-        try:
-            auc = roc_auc_score(y_true, y_pred)
-            aucs.append(auc)
-            print(f"  {pathology:<35} {auc:.4f}  (n={mask.sum()})")
-        except ValueError:
-            print(f"  {pathology:<35} N/A (single class)")
-    if aucs:
-        mean_auc = sum(aucs) / len(aucs)
-        print("-" * 45)
-        print(f"  {'Mean AUC':<35} {mean_auc:.4f}")
+    print_aucs(predictions.numpy(), true_labels.numpy(), pathologies)
 
     print("\n✅ Test inference complete!")
 
@@ -159,7 +71,4 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default='/gpfs0/tamyr/users/alonfi/XRay/config.yaml')
     args = parser.parse_args()
-    print('=' * 80)
-    print('TEST INFERENCE')
-    print('=' * 80)
     test_inference(config_path=args.config)

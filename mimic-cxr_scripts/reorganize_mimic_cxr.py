@@ -3,7 +3,6 @@
 Reorganize flat MIMIC-CXR downloads into proper directory structure.
 Maps images based on the filenames list to match: files/p10/p10000001/s50414282/imagename.jpg
 """
-import os
 import sys
 from pathlib import Path
 from tqdm import tqdm
