@@ -150,7 +150,8 @@ CheXpert labels suffer from a labeling artifact: when a child finding is positiv
 - **inference.py**: Shared helpers used by `test.py`, `calculate_conformal_pred.py` and `export_split_scores.py`: `load_model()` (checkpoint lookup + eval-mode model + device), `predict()`, `build_results_df()`.
 - **test.py**: Runs inference on test_split, saves predictions CSV to `results/outputs/`, prints per-label AUC (filtering uncertain labels).
 - **calculate_conformal_pred.py**: Conformal prediction calibration using conformal_split.
-- **Research modules (repo root)**: `conformal_common.py` (shared loading/Gate 0/scores), `max_rank.py`, `bonferrony.py`, `lp_scp.py`, `compare_methods.py`, `bootstrap_coverage.py`. Imported by `experiments/*`; they operate on the frozen CSVs, not the model.
+- **Research modules (repo root)**: `conformal_common.py` (shared loading/Gate 0/scores), `compare_methods.py`, `bootstrap_coverage.py`. Operate on the frozen CSVs, not the model.
+- **conformal_methods/**: the compared methods. `max_rank.py` (Timans Alg. 2), `bonferrony.py` (per-label none/Bonferroni/Šidák), `lp_scp.py` (label-powerset SCP with structural penalties), `mlp_score.py` (learned joint-state MLP scorer L0/L1/L2 as a Lightning module, ported from Exp055's `run.py`, which stays unmodified). Run as `python -m conformal_methods.<name>`. Root `max_rank.py`, `lp_scp.py`, `bonferrony.py` are thin shims that alias the package modules so experiments 046-055 keep importing them unchanged.
 - **results/scripts/**: empty as of the 2026-10-28 clean restart — every plotting script was
   deleted along with `results/images/`. New figures are written fresh; the old ones are in
   `~/Desktop/xray_pre_reset_backup_20261028_104145.tar.gz` if a reference is needed.
