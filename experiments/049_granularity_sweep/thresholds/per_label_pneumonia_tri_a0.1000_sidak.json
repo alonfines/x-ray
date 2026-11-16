@@ -1,0 +1,33 @@
+{
+  "key": {
+    "method": "per_label",
+    "cluster": "pneumonia_tri",
+    "labels": [
+      "Consolidation",
+      "Lung Opacity",
+      "Pneumonia"
+    ],
+    "alpha": 0.1,
+    "variant": "sidak",
+    "stem": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809",
+    "calibration_fingerprint": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_conformal.csv:18754:4d08f57c8b19cfe5"
+  },
+  "thresholds": {
+    "Lung Opacity": 0.861462,
+    "Consolidation": 0.797487,
+    "Pneumonia": 0.790237
+  },
+  "diagnostics": {
+    "n_calibration": 18754,
+    "m": 3,
+    "correction": "sidak",
+    "alpha_effective": 0.03451061539437028,
+    "k": 18108,
+    "degenerate": false,
+    "positives_per_label": {
+      "Lung Opacity": 7440,
+      "Consolidation": 1642,
+      "Pneumonia": 1195
+    }
+  }
+}

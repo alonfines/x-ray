@@ -1,0 +1,63 @@
+{
+  "key": {
+    "method": "per_label",
+    "cluster": "all13",
+    "labels": [
+      "Atelectasis",
+      "Cardiomegaly",
+      "Consolidation",
+      "Edema",
+      "Enlarged Cardiomediastinum",
+      "Fracture",
+      "Lung Lesion",
+      "Lung Opacity",
+      "Pleural Effusion",
+      "Pleural Other",
+      "Pneumonia",
+      "Pneumothorax",
+      "Support Devices"
+    ],
+    "alpha": 0.1,
+    "variant": "none",
+    "stem": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809",
+    "calibration_fingerprint": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_conformal.csv:18754:4d08f57c8b19cfe5"
+  },
+  "thresholds": {
+    "Enlarged Cardiomediastinum": 0.707492,
+    "Cardiomegaly": 0.710572,
+    "Lung Opacity": 0.740764,
+    "Lung Lesion": 0.67864,
+    "Edema": 0.660114,
+    "Consolidation": 0.672373,
+    "Pneumonia": 0.659082,
+    "Atelectasis": 0.747016,
+    "Pneumothorax": 0.705272,
+    "Pleural Effusion": 0.700935,
+    "Pleural Other": 0.673461,
+    "Fracture": 0.653197,
+    "Support Devices": 0.702601
+  },
+  "diagnostics": {
+    "n_calibration": 18754,
+    "m": 13,
+    "correction": "none",
+    "alpha_effective": 0.1,
+    "k": 16880,
+    "degenerate": false,
+    "positives_per_label": {
+      "Enlarged Cardiomediastinum": 3893,
+      "Cardiomegaly": 3473,
+      "Lung Opacity": 7440,
+      "Lung Lesion": 523,
+      "Edema": 2094,
+      "Consolidation": 1642,
+      "Pneumonia": 1195,
+      "Atelectasis": 3419,
+      "Pneumothorax": 914,
+      "Pleural Effusion": 3937,
+      "Pleural Other": 151,
+      "Fracture": 304,
+      "Support Devices": 5352
+    }
+  }
+}

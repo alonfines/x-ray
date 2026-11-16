@@ -1,0 +1,31 @@
+{
+  "key": {
+    "method": "max_rank",
+    "cluster": "cardio_pair",
+    "labels": [
+      "Cardiomegaly",
+      "Enlarged Cardiomediastinum"
+    ],
+    "alpha": 0.1,
+    "variant": "",
+    "stem": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809",
+    "calibration_fingerprint": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_conformal.csv:18754:4d08f57c8b19cfe5"
+  },
+  "thresholds": {
+    "Enlarged Cardiomediastinum": 0.722275,
+    "Cardiomegaly": 0.724013
+  },
+  "diagnostics": {
+    "n_calibration": 18754,
+    "m": 2,
+    "k_rank": 16880,
+    "k_star": 17060,
+    "k_star_fraction": 0.9096726031779887,
+    "bonferroni_k_for_reference": 17818,
+    "positives_per_label": {
+      "Enlarged Cardiomediastinum": 3893,
+      "Cardiomegaly": 3473
+    },
+    "degenerate": false
+  }
+}

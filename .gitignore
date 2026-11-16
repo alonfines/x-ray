@@ -44,6 +44,9 @@ csv_files/
 # Job submission cheat-sheets
 submit_*.txt
 
+# Vendored third-party code (e.g. CheXbert) - not part of thesis repo history
+third_party/
+
 # === Exceptions: conformal calibration results ===
 # Un-ignore the conformal_calibration directory tree
 !conformal_calibration/

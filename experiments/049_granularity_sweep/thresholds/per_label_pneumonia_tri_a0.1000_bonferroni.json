@@ -1,0 +1,33 @@
+{
+  "key": {
+    "method": "per_label",
+    "cluster": "pneumonia_tri",
+    "labels": [
+      "Consolidation",
+      "Lung Opacity",
+      "Pneumonia"
+    ],
+    "alpha": 0.1,
+    "variant": "bonferroni",
+    "stem": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809",
+    "calibration_fingerprint": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_conformal.csv:18754:4d08f57c8b19cfe5"
+  },
+  "thresholds": {
+    "Lung Opacity": 0.864604,
+    "Consolidation": 0.800303,
+    "Pneumonia": 0.794483
+  },
+  "diagnostics": {
+    "n_calibration": 18754,
+    "m": 3,
+    "correction": "bonferroni",
+    "alpha_effective": 0.03333333333333333,
+    "k": 18130,
+    "degenerate": false,
+    "positives_per_label": {
+      "Lung Opacity": 7440,
+      "Consolidation": 1642,
+      "Pneumonia": 1195
+    }
+  }
+}

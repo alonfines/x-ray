@@ -1,0 +1,27 @@
+{
+  "key": {
+    "method": "per_label",
+    "cluster": "Lung Opacity",
+    "labels": [
+      "Lung Opacity"
+    ],
+    "alpha": 0.1,
+    "variant": "none",
+    "stem": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809",
+    "calibration_fingerprint": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_conformal.csv:18754:4d08f57c8b19cfe5"
+  },
+  "thresholds": {
+    "Lung Opacity": 0.740764
+  },
+  "diagnostics": {
+    "n_calibration": 18754,
+    "m": 1,
+    "correction": "none",
+    "alpha_effective": 0.1,
+    "k": 16880,
+    "degenerate": false,
+    "positives_per_label": {
+      "Lung Opacity": 7440
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "key": {
+    "method": "lp_scp",
+    "cluster": "pleural_free",
+    "labels": [
+      "Pleural Effusion",
+      "Pneumothorax",
+      "Support Devices"
+    ],
+    "alpha": 0.1,
+    "variant": "base",
+    "stem": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809",
+    "calibration_fingerprint": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_conformal.csv:18754:4d08f57c8b19cfe5",
+    "proper_training_split": "train"
+  },
+  "thresholds": 3.5835972916781627,
+  "diagnostics": {
+    "n_calibration": 18754,
+    "k": 16880,
+    "threshold": 3.5835972916781627,
+    "degenerate": false,
+    "inadmissible_calibration_rows": 0,
+    "mu": 0.0,
+    "nu": 0.0,
+    "enforce_hierarchy": false,
+    "n_proper_training": 130684,
+    "sigma_condition_number": 3.4703467555002683,
+    "sigma_ridge": 0.0,
+    "n_observed_label_sets": 8,
+    "n_states": 8,
+    "unobserved_states": 0,
+    "hp_min": 0.0,
+    "hp_max": 0.0,
+    "cp_min": 0.4073643292216339,
+    "cp_max": 0.9913837960270576
+  }
+}

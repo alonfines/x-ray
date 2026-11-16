@@ -149,6 +149,9 @@ CheXpert labels suffer from a labeling artifact: when a child finding is positiv
 - **train.py**: Trains on train_split, validates on valid_split. Uses `get_data_module()` to load the dataset. Supports `reinit_classifier` (re-initialize the classifier head when loading a pretrained checkpoint) and WandB logging via `WandbLogger`.
 - **test.py**: Runs inference on test_split, saves predictions CSV to `results/outputs/`, prints per-label AUC (filtering uncertain labels).
 - **calculate_conformal_pred.py**: Conformal prediction calibration using conformal_split.
+- **results/scripts/**: empty as of the 2026-10-28 clean restart — every plotting script was
+  deleted along with `results/images/`. New figures are written fresh; the old ones are in
+  `~/Desktop/xray_pre_reset_backup_20261028_104145.tar.gz` if a reference is needed.
 
 ## Trained Model
 
@@ -156,6 +159,47 @@ Single unified checkpoint: `checkpoints/mimic/densenet-alllabels-bce-hier-full-e
 - Trained on full MIMIC-CXR dataset with hierarchy correction enabled
 - Test inference CSV: `results/outputs/mimic/densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809.csv`
 - Conformal calibration: `conformal_calibration/mimic/hier_unified/`
+
+All three splits are exported, flat in `results/outputs/mimic/`, named off the checkpoint
+stem (`{stem}.csv` for test, `{stem}_conformal.csv`, `{stem}_validation.csv`). Each has
+`subject_id, study_id, dicom_id` + `{label}_prob` / `{label}_true_label` for 13 labels:
+
+| split | rows | subjects |
+|---|---|---|
+| train | — | — |
+| validation | 18,570 | 5,898 |
+| conformal | 18,754 | 5,926 |
+| test | 24,394 | 6,395 |
+
+**Splits are subject-disjoint.** `data/mimic_split.py` now stratifies on subject-level
+label maxima (`groupby('subject_id')[pathologies].max()`) and splits subject IDs, then
+maps rows back — verified zero subject and zero image overlap across all three pairs.
+This fixed a subject-level leakage problem in the earlier partial-data splits (32.8% of
+test subjects also appeared in calibration), which had invalidated the coverage
+guarantees of every experiment built on them. Every new experiment re-verifies the overlap
+as its Gate 0.
+
+- **export_split_scores.py**: Exports validation + conformal predictions for the unified
+  model. `python export_split_scores.py --config config_hier_unified.yaml`.
+
+## Per-Label Pipeline (retired, kept on disk only)
+
+The per-label one-vs-rest pathway is **retired and will not be retrained** (Alon,
+2026-10-21). All conformal work runs on unified-model probabilities. Standing caveat: the
+unified model's shared backbone inflates cross-label probability correlation (Enlarged
+Cardiomediastinum/Cardiomegaly 0.936 → 0.997, Consolidation/Pneumonia 0.832 → 0.971), so
+any dependence claim computed on it partly measures the backbone — state this, don't
+retrain around it.
+
+Files still present but unused: `utils.py`, `export_scores.py`, `train_per_label.py`,
+`calibrate_per_label.py`, `test_per_label.py`, `configs/per_label/`,
+`configs/per_label_hier/`. Their checkpoints were partial-data and leaky; don't resurrect
+them.
+
+- **export_scores.py**: Exports conformal + validation probabilities with subject IDs.
+  `__main__` runs `export_unified_hier()` then `export_per_label_hier()`; labels without
+  a checkpoint are skipped with a `[SKIP]` line. `export_per_label()` (non-hier) exists
+  but is not called from `__main__`.
 
 ## MIMIC-CXR Data Utilities
 
@@ -172,19 +216,40 @@ Single unified checkpoint: `checkpoints/mimic/densenet-alllabels-bce-hier-full-e
 
 ## Results & Visualization
 
-Scripts in `results/scripts/` generate plots saved to `results/images/`. Test inference CSVs are stored in `results/outputs/mimic/`.
+`results/outputs/mimic/` holds the three frozen probability CSVs (validation / conformal /
+test) — these are the inputs to all research work and are not regenerated.
+`results/images/` and `results/scripts/` were emptied in the 2026-10-28 restart.
 
-**Running:**
-```bash
-python results/scripts/label_distribution.py
-python results/scripts/auc_unified_model.py
-python results/scripts/co_occurrence_analysis.py
-python results/scripts/dependency_matrices.py
-```
+## Research Direction
+
+The focus (as of 2026-11-10) is the **efficiency of clustering for conformal prediction**:
+how much clustering labels and calibrating each cluster jointly shrinks prediction sets at
+the same joint coverage, on the unified model's cached probabilities. `RESEARCH_DIRECTION.md`
+holds the committed design (clustering procedures, score, methods, metric set, caveats).
+
+**Clean restart, 2026-10-28.** Folders 032–045, the Exp032–042 summaries, and all
+plots/plotting scripts were deliberately deleted. Current experiments are
+`experiments/046` onward. Backup tarball:
+`~/Desktop/xray_pre_reset_backup_20261028_104145.tar.gz`.
+`MAX_RANK_EXPERIMENTS_SUMMARY.md` (Exp001–031) is the older archive.
 
 ## Agents
 
-- **Tom Hagan** (`.claude/agents/tom-hagan.md`): Research consigliere and AI/math expert. Does NOT write code. Consults on research strategy, paper narrative, mathematical formulations (conformal prediction, coverage guarantees, score functions), and helps navigate thesis decisions. Invoke for strategic questions about the research direction, paper contribution, or when stuck.
+- **Tom Hagan** (`.claude/agents/tom-hagan.md`): conformal-prediction and mathematical-
+  statistics consultant. Does NOT write code. Rules on validity of coverage guarantees,
+  score design, joint vs. marginal coverage, clustering choices, and how to state a claim
+  honestly. Reads `RESEARCH_DIRECTION.md` on demand. Invoke for design decisions and for
+  reviewing Jules's results or escalations.
+- **Jules** (`.claude/agents/jules.md`): experiment runner. Executes exactly Tom's spec on
+  the frozen CSVs, pre-registers before running, reports honest numbers. Designs nothing —
+  no choosing clusters, metrics, methods, α or λ. Never modifies the pipeline. Escalates via
+  `ESCALATION.md` rather than iterating variants.
+
+**Workflow:** Tom designs an experiment (grounded in `RESEARCH_DIRECTION.md`) → Jules
+pre-registers and runs it in `experiments/<NNN>_<slug>/`, reporting joint coverage (validity
+gate) and efficiency (joint set size vs. unclustered and random-cluster baselines, with CIs)
+→ sound result feeds Tom's next decision;
+unclear or unsound result becomes an `ESCALATION.md` for Tom.
 
 **Plot Design Guideline:** All plots must be readable by a 50-year-old woman without glasses, looking at a small laptop screen through a Zoom call. This means:
 - Large figure size (18×11 inches minimum)

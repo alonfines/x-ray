@@ -1,0 +1,36 @@
+{
+  "key": {
+    "method": "lp_scp",
+    "cluster": "lung_core",
+    "labels": [
+      "Consolidation",
+      "Edema",
+      "Lung Opacity"
+    ],
+    "alpha": 0.1,
+    "variant": "grid_mu2.0_nu0.5",
+    "stem": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809",
+    "calibration_fingerprint": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_conformal.csv:18754:4d08f57c8b19cfe5"
+  },
+  "thresholds": 4.080351776812223,
+  "diagnostics": {
+    "n_calibration": 18754,
+    "k": 16880,
+    "threshold": 4.080351776812223,
+    "degenerate": false,
+    "inadmissible_calibration_rows": 0,
+    "mu": 2.0,
+    "nu": 0.5,
+    "enforce_hierarchy": false,
+    "n_proper_training": 18570,
+    "sigma_condition_number": 4.152340994967607,
+    "sigma_ridge": 0.0,
+    "n_observed_label_sets": 5,
+    "n_states": 8,
+    "unobserved_states": 3,
+    "hp_min": 0.0,
+    "hp_max": 0.3333333333333333,
+    "cp_min": 0.39326871297792143,
+    "cp_max": 0.9841680129240711
+  }
+}

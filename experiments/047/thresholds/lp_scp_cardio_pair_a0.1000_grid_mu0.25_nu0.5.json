@@ -1,0 +1,35 @@
+{
+  "key": {
+    "method": "lp_scp",
+    "cluster": "cardio_pair",
+    "labels": [
+      "Cardiomegaly",
+      "Enlarged Cardiomediastinum"
+    ],
+    "alpha": 0.1,
+    "variant": "grid_mu0.25_nu0.5",
+    "stem": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809",
+    "calibration_fingerprint": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_conformal.csv:18754:4d08f57c8b19cfe5"
+  },
+  "thresholds": 3.052465088404672,
+  "diagnostics": {
+    "n_calibration": 18754,
+    "k": 16880,
+    "threshold": 3.052465088404672,
+    "degenerate": false,
+    "inadmissible_calibration_rows": 0,
+    "mu": 0.25,
+    "nu": 0.5,
+    "enforce_hierarchy": false,
+    "n_proper_training": 18570,
+    "sigma_condition_number": 46.969839612078474,
+    "sigma_ridge": 0.0,
+    "n_observed_label_sets": 3,
+    "n_states": 4,
+    "unobserved_states": 1,
+    "hp_min": 0.0,
+    "hp_max": 0.5,
+    "cp_min": 0.20597738287560585,
+    "cp_max": 0.9797522886375875
+  }
+}

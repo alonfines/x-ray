@@ -1,0 +1,39 @@
+{
+  "key": {
+    "method": "per_label",
+    "cluster": "residual",
+    "labels": [
+      "Fracture",
+      "Pleural Effusion",
+      "Pleural Other",
+      "Pneumothorax",
+      "Support Devices"
+    ],
+    "alpha": 0.1,
+    "variant": "sidak",
+    "stem": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809",
+    "calibration_fingerprint": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_conformal.csv:18754:4d08f57c8b19cfe5"
+  },
+  "thresholds": {
+    "Pneumothorax": 0.883163,
+    "Pleural Effusion": 0.901042,
+    "Pleural Other": 0.902626,
+    "Fracture": 0.795773,
+    "Support Devices": 0.905307
+  },
+  "diagnostics": {
+    "n_calibration": 18754,
+    "m": 5,
+    "correction": "sidak",
+    "alpha_effective": 0.0208516376390232,
+    "k": 18364,
+    "degenerate": false,
+    "positives_per_label": {
+      "Pneumothorax": 914,
+      "Pleural Effusion": 3937,
+      "Pleural Other": 151,
+      "Fracture": 304,
+      "Support Devices": 5352
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "key": {
+    "method": "per_label",
+    "cluster": "lung_hub",
+    "labels": [
+      "Atelectasis",
+      "Consolidation",
+      "Edema",
+      "Lung Lesion",
+      "Lung Opacity",
+      "Pneumonia"
+    ],
+    "alpha": 0.1,
+    "variant": "bonferroni",
+    "stem": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809",
+    "calibration_fingerprint": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_conformal.csv:18754:4d08f57c8b19cfe5"
+  },
+  "thresholds": {
+    "Lung Opacity": 0.905048,
+    "Lung Lesion": 0.884034,
+    "Edema": 0.890859,
+    "Consolidation": 0.852668,
+    "Pneumonia": 0.848943,
+    "Atelectasis": 0.861619
+  },
+  "diagnostics": {
+    "n_calibration": 18754,
+    "m": 6,
+    "correction": "bonferroni",
+    "alpha_effective": 0.016666666666666666,
+    "k": 18443,
+    "degenerate": false,
+    "positives_per_label": {
+      "Lung Opacity": 7440,
+      "Lung Lesion": 523,
+      "Edema": 2094,
+      "Consolidation": 1642,
+      "Pneumonia": 1195,
+      "Atelectasis": 3419
+    }
+  }
+}

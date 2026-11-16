@@ -1,0 +1,344 @@
+{
+  "gate0": {
+    "overlap_counts": {
+      "conformal|test:subject_id": 0,
+      "conformal|test:dicom_id": 0,
+      "conformal|validation:subject_id": 0,
+      "conformal|validation:dicom_id": 0,
+      "test|validation:subject_id": 0,
+      "test|validation:dicom_id": 0
+    },
+    "full_rows": {
+      "validation": 18570,
+      "conformal": 18754,
+      "test": 24394
+    },
+    "all13_clean_rows": {
+      "validation": 18570,
+      "conformal": 18754,
+      "test": 18877
+    },
+    "all13_clean_subjects": {
+      "validation": 5898,
+      "conformal": 5926,
+      "test": 5932
+    },
+    "pool_rows": 37631,
+    "pool_subjects": 11858,
+    "hierarchy_violations_all_zero": true,
+    "units_checked": 84,
+    "splits_per_unit": 3
+  },
+  "eligibility": {
+    "pos_conf_all13_clean": {
+      "Enlarged Cardiomediastinum": 3893,
+      "Cardiomegaly": 3473,
+      "Lung Opacity": 7440,
+      "Lung Lesion": 523,
+      "Edema": 2094,
+      "Consolidation": 1642,
+      "Pneumonia": 1195,
+      "Atelectasis": 3419,
+      "Pneumothorax": 914,
+      "Pleural Effusion": 3937,
+      "Pleural Other": 151,
+      "Fracture": 304,
+      "Support Devices": 5352
+    },
+    "eligible": [
+      "Enlarged Cardiomediastinum",
+      "Cardiomegaly",
+      "Lung Opacity",
+      "Lung Lesion",
+      "Edema",
+      "Consolidation",
+      "Pneumonia",
+      "Atelectasis",
+      "Pneumothorax",
+      "Pleural Effusion",
+      "Fracture",
+      "Support Devices"
+    ],
+    "ineligible": [
+      "Pleural Other"
+    ],
+    "min_positive": 200
+  },
+  "identity_gate": {
+    "frozen_max_mismatch": 0.0,
+    "resplits_0_99_min": 0.0,
+    "resplits_0_99_median": 0.0,
+    "resplits_0_99_max": 0.0,
+    "n_resplits_over_tol": 0,
+    "tolerance": 0.005,
+    "passed": true,
+    "calside_cov_mean": {
+      "indep": 0.9000728903526567,
+      "bonferroni": 0.9000728903526567,
+      "sidak": 0.9000728903526567,
+      "maxrank": 0.9000728903526567
+    }
+  },
+  "pilot_reproduction": [
+    {
+      "unit": "cardio_pair",
+      "threshold_now": 1.1684340136620388,
+      "threshold_pilot": 1.1684340136620388,
+      "best_epoch_now": 86,
+      "best_epoch_pilot": 86,
+      "stop_epoch_now": 96,
+      "stop_epoch_pilot": 96,
+      "holdout_ce_now": 0.4509621858596802,
+      "holdout_ce_pilot": 0.4509621858596802,
+      "match": true
+    },
+    {
+      "unit": "lung_core",
+      "threshold_now": 2.092575035675866,
+      "threshold_pilot": 2.092575035675866,
+      "best_epoch_now": 34,
+      "best_epoch_pilot": 34,
+      "stop_epoch_now": 44,
+      "stop_epoch_pilot": 44,
+      "holdout_ce_now": 0.8177868723869324,
+      "holdout_ce_pilot": 0.8177868723869324,
+      "match": true
+    },
+    {
+      "unit": "pleural_free",
+      "threshold_now": 2.2502844439382375,
+      "threshold_pilot": 2.2502844439382375,
+      "best_epoch_now": 22,
+      "best_epoch_pilot": 22,
+      "stop_epoch_now": 32,
+      "stop_epoch_pilot": 32,
+      "holdout_ce_now": 0.8206883072853088,
+      "holdout_ce_pilot": 0.8206883072853088,
+      "match": true
+    },
+    {
+      "unit": "lung_wide",
+      "threshold_now": 2.891493165154345,
+      "threshold_pilot": 2.891493165154345,
+      "best_epoch_now": 37,
+      "best_epoch_pilot": 37,
+      "stop_epoch_now": 47,
+      "stop_epoch_pilot": 47,
+      "holdout_ce_now": 1.0700207948684692,
+      "holdout_ce_pilot": 1.0700207948684692,
+      "match": true
+    }
+  ],
+  "triggers": [
+    {
+      "trigger": "learned_arm_coverage_outside_band",
+      "detail": [
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_15",
+          "variant": "L1",
+          "seed": 0,
+          "joint_coverage_mean": 0.9557486627842781
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_15",
+          "variant": "L1",
+          "seed": 1,
+          "joint_coverage_mean": 0.9557714849727685
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_15",
+          "variant": "L1",
+          "seed": 2,
+          "joint_coverage_mean": 0.9556911283811447
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_15",
+          "variant": "L1",
+          "seed": 3,
+          "joint_coverage_mean": 0.9557476134844509
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_15",
+          "variant": "L1",
+          "seed": 4,
+          "joint_coverage_mean": 0.9557486627842781
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_15",
+          "variant": "L2",
+          "seed": 0,
+          "joint_coverage_mean": 0.9557391807692646
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_15",
+          "variant": "L2",
+          "seed": 1,
+          "joint_coverage_mean": 0.9556911260071413
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_15",
+          "variant": "L2",
+          "seed": 2,
+          "joint_coverage_mean": 0.9557997275244215
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_15",
+          "variant": "L2",
+          "seed": 3,
+          "joint_coverage_mean": 0.9558147069229469
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_15",
+          "variant": "L2",
+          "seed": 4,
+          "joint_coverage_mean": 0.955795676537043
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_19",
+          "variant": "L1",
+          "seed": 0,
+          "joint_coverage_mean": 0.9557486627842781
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_19",
+          "variant": "L1",
+          "seed": 1,
+          "joint_coverage_mean": 0.9557714849727685
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_19",
+          "variant": "L1",
+          "seed": 2,
+          "joint_coverage_mean": 0.9556911283811447
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_19",
+          "variant": "L1",
+          "seed": 3,
+          "joint_coverage_mean": 0.9557476134844509
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_19",
+          "variant": "L1",
+          "seed": 4,
+          "joint_coverage_mean": 0.9557486627842781
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_19",
+          "variant": "L2",
+          "seed": 0,
+          "joint_coverage_mean": 0.9557391807692646
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_19",
+          "variant": "L2",
+          "seed": 1,
+          "joint_coverage_mean": 0.9556911260071413
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_19",
+          "variant": "L2",
+          "seed": 2,
+          "joint_coverage_mean": 0.9557997275244215
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_19",
+          "variant": "L2",
+          "seed": 3,
+          "joint_coverage_mean": 0.9558147069229469
+        },
+        {
+          "family": "random",
+          "unit": "rand_cardio_pair_19",
+          "variant": "L2",
+          "seed": 4,
+          "joint_coverage_mean": 0.955795676537043
+        }
+      ]
+    }
+  ],
+  "trigger_info": {
+    "n_scorers_hit_200_cap": 6,
+    "scorers_hit_cap": [
+      {
+        "unit": "cardio_pair",
+        "scorer": "L0",
+        "seed": 0
+      },
+      {
+        "unit": "cardio_pair",
+        "scorer": "L0",
+        "seed": 1
+      },
+      {
+        "unit": "cardio_pair",
+        "scorer": "L0",
+        "seed": 2
+      },
+      {
+        "unit": "cardio_pair",
+        "scorer": "L0",
+        "seed": 3
+      },
+      {
+        "unit": "lung_wide",
+        "scorer": "L0",
+        "seed": 3
+      },
+      {
+        "unit": "lung_wide",
+        "scorer": "L0",
+        "seed": 4
+      }
+    ]
+  },
+  "holdout": {
+    "n_validation_subjects": 5898,
+    "n_holdout_subjects": 1180,
+    "n_train_rows": 14853,
+    "n_holdout_rows": 3717
+  },
+  "resplit_sizes": {
+    "n_pool_subjects": 11858,
+    "per_resplit_A_B_subjects": [
+      [
+        18754,
+        18877,
+        5929,
+        5929
+      ],
+      [
+        19333,
+        18298,
+        5929,
+        5929
+      ],
+      [
+        18957,
+        18674,
+        5929,
+        5929
+      ]
+    ]
+  },
+  "runtime_seconds": 989.9305772781372
+}

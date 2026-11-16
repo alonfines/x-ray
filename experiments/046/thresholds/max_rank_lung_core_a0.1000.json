@@ -1,0 +1,34 @@
+{
+  "key": {
+    "method": "max_rank",
+    "cluster": "lung_core",
+    "labels": [
+      "Consolidation",
+      "Edema",
+      "Lung Opacity"
+    ],
+    "alpha": 0.1,
+    "variant": "",
+    "stem": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809",
+    "calibration_fingerprint": "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_conformal.csv:18754:4d08f57c8b19cfe5"
+  },
+  "thresholds": {
+    "Lung Opacity": 0.848647,
+    "Edema": 0.820568,
+    "Consolidation": 0.781501
+  },
+  "diagnostics": {
+    "n_calibration": 18754,
+    "m": 3,
+    "k_rank": 16880,
+    "k_star": 17992,
+    "k_star_fraction": 0.9593686680174897,
+    "bonferroni_k_for_reference": 18130,
+    "positives_per_label": {
+      "Lung Opacity": 7440,
+      "Edema": 2094,
+      "Consolidation": 1642
+    },
+    "degenerate": false
+  }
+}

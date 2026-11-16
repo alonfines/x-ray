@@ -1,0 +1,678 @@
+RESEARCH PROPOSAL
+Title: Trustworthy GenAI for Radiology Reports via Conformal Validation of Statements
+Project coordinator: Tammy Riklin Raviv
+
+1.
+
+Abstract
+
+Generative AI is rapidly changing the technical landscape of medical image interpretation. In radiology, large
+vision-language models can already produce fluent, plausible reports from imaging studies. Yet fluency is not
+clinical validity. A generated report may contain statements that are unsupported by the image, omit clinically
+important observations, or express certainty when the visual evidence is ambiguous. Such errors may hinder their
+incorporation into routine clinical practice, as they raise unresolved concerns regarding reliability, uncertainty,
+and safety.
+This proposal develops a framework for evidence-constrained generative radiology. It moves beyond standard
+report-generation evaluation, which often relies on text similarity, label extraction, or uncalibrated factuality
+scoring. Instead, it probes the statistical validity of image-conditioned clinical statements implicitly asserted by the
+text, addressing their dependencies while preserving clinically relevant modifiers. Structured conformal predictions
+will be used to obtain calibrated prediction for sets of related radiology statements with formal guarantees. These
+guarantees will then be translated into explicit generative behaviors, namely assertion, qualification, or abstention,
+thereby aligning model behavior with clinical intent. The research will investigate the mathematical properties of
+conformalized statements, the emergence of epistemic and aleatoric uncertainty through conformal set behavior,
+and the limits of safe generation under imbalanced or rare findings, partial observability and domain shift. The
+outcome is a theoretically grounded and practically applicable framework for medical GenAI systems in which
+free-text outputs must be constrained by evidence.
+2.
+
+Scientific background and state of the art
+
+Radiology GenAI and the safety gap. Radiology reports are evidential clinical documents: they communicate
+what is justified by imaging data. Thus, the central risk in report generation is not stylistic failure, but clinically
+consequential statements that are unsupported, insufficiently qualified, or omitted despite being relevant.
+Current evaluation methods for radiology report generation do not fully address this safety problem. Lexical
+metrics such as BLEU or ROUGE are poorly aligned with clinical correctness. Label-based scores provide useful
+summaries but collapse rich report language into a limited set of findings. Entity- and relation-based approaches,
+such as RadGraph, move closer to clinical structure by extracting findings, anatomical locations, and relations
+(Jain et al., 2021). Newer evaluation frameworks such as GREEN attempt to identify clinically significant errors in
+generated reports (Ostmeier et al., 2024). Studies of report-generation progress and metrics have also shown that
+clinically meaningful metrics such as RadGraph F1 and RadCliQ provide more useful evaluation than text overlap
+alone (F. Yu et al., 2023). These developments demonstrate that the field is moving away from surface-level text
+similarity. However, they still largely evaluate generated reports after the fact, without providing a principled
+statistical mechanism that determines what a model may safely assert, qualify, or withhold.
+From report generation to evidence-constrained communication. Recent radiology vision-language models
+
+Page 1 of 12
+
+and report-generation systems, including large multimodal and dialog-oriented models, demonstrate the rapid
+progress of the field (Pellegrini et al., 2023). Methods for improving factual completeness and consistency
+have emphasized that generated reports must be evaluated not only for incorrect statements but also for missing
+clinically important information (Miura et al., 2021). The proposed project builds on this direction but changes
+the target of analysis: from the generated report as a whole to the set of dependent image-conditioned clinical
+statements it communicates.
+Structured report information and report-derived labels. Report-derived labels and information extraction are
+essential for large-scale medical AI. CheXpert introduced uncertainty-aware labels for chest radiographs (Irvin
+et al., 2019), while CheXbert showed that BERT-based labelers can improve automatic radiology report labeling
+using expert annotations and rule-based supervision (Smit et al., 2020). MIMIC-CXR and MIMIC-CXR-JPG
+provide large public resources of chest radiographs, free-text reports, and structured labels that have enabled
+much of the modern literature in chest imaging AI (Johnson, Pollard, Berkowitz, et al., 2019; Johnson, Pollard,
+Greenbaum, et al., 2019). These datasets and labelers are important empirical resources, but the proposal does
+not reduce the scientific contribution to a specific dataset or label list. They will be used to instantiate and test a
+general framework for evidence-calibrated statements.
+Conformal prediction and medical uncertainty. Uncertainty quantification is central to medical AI. A medical
+GenAI system should not only produce an answer; it should know when the evidence is insufficient. Conformal
+prediction provides a distribution-free framework for constructing prediction sets with finite-sample coverage
+guarantees under exchangeability (Vovk et al., 2005; Shafer and Vovk, 2008; Angelopoulos* and Bates, 2023).
+In its standard form, conformal prediction produces a set that contains the true output with probability at least
+1 − α. This is attractive for medicine because uncertainty can be communicated explicitly rather than hidden
+behind a single prediction. Related work has developed conformalized quantile regression (Romano et al., 2019),
+risk-controlling prediction sets (Bates et al., 2021), conformal risk control (Angelopoulos et al., 2024), and
+multi-label prediction sets with limited false positives (Fisch* et al., 2022). These methods provide important
+statistical tools, but they do not directly define the clinical unit of validation for free-text medical generation.
+Conditional calibration, class imbalance, and rare statements. Marginal coverage over all statements may
+be misleading in radiology. Statement distributions are highly imbalanced: common normal or chronic findings
+dominate the data, while rare but clinically important findings may have limited calibration support. A system can
+appear well calibrated overall while being unreliable for rare findings, uncertain statements, specific anatomical
+regions, or high-risk clinical concepts. Class-conditional and clustered conformal prediction directly address
+the difficulty of obtaining stronger coverage guarantees when classes are numerous or imbalanced (Ding et al.,
+2023). Work on conditional histograms, label-noise robustness, missing values, and corrupted labels further
+demonstrates that calibration must be adapted to the structure and imperfections of real data (Sesia and Romano,
+2021; Einbinder et al., 2022; Zaffran et al., 2023; Feldman* et al., 2025). This project aim to bring these ideas to
+image-conditioned clinical statements, where the conditioning variables are not only labels but also semantic,
+clinical, and representation-based neighborhoods.
+Medical imaging uncertainty beyond scalar prediction. Medical imaging introduces additional structure that
+is often absent from standard classification problems. Predictions may be spatial, multi-label, correlated across
+anatomy, affected by acquisition protocol, and tied to clinical language rather than to a single endpoint. Recent
+work on uncertainty quantification for imaging has therefore emphasized the need to move beyond independent
+
+Page 2 of 12
+
+pixel-wise or label-wise confidence scores toward structured uncertainty objects, including spatially coherent
+uncertainty, conformal masks, and clinically interpretable uncertainty displays (Belhasin et al., 2024; Kutiel*
+et al., 2023). These ideas are highly relevant here: the proposed framework treats uncertainty as a property of
+image-conditioned clinical communication. The object to be calibrated is not only an image classifier output, but
+the evidence relationship between an image and a statement.
+The remaining gap. The key scientific gap is not simply classifier calibration, but the calibration of the
+relationship between an image and a dependent set of image-conditioned clinical statements. Report statements
+may encode presence, absence, uncertainty, severity, laterality, chronicity, temporal change, or omission, and these
+states may imply, qualify, contradict, or constrain one another. The proposed project reframes report generation as
+evidence-constrained clinical communication, centered on a validation unit that preserves clinical meaning while
+enabling structured, conditional, and multidimensional calibration.
+3.
+
+Research objectives and specific aims
+
+The overall objective is to develop a framework for evidence-constrained generative radiology, in which generated
+reports are validated as sets of image-conditioned clinical statements rather than as free text or isolated labels.
+The central hypothesis is that report generation becomes safer and more clinically useful when each statement is
+assigned a calibrated evidence status relative to the image, and report language is constrained accordingly.
+The main methodological contribution is structured conformal validation of dependent clinical statements. The
+project will define the validation unit, represent dependencies among statements, construct image-conditioned
+nonconformity scores, calibrate admissible evidence assignments, and translate the calibrated sets into report-level
+behaviors such as assertion, qualification, abstention, or flagging for review.
+Aim 1: Define image-conditioned clinical statements as validation units. We will formalize each report
+statement as a structured object encoding a clinical concept, assertion state, and modifiers such as location,
+laterality, severity, temporal change, or uncertainty. This aim establishes the basic unit on which statistical
+validation is performed.
+Aim 2: Model dependencies among statements and define structured nonconformity. We will represent
+relations among normalized statements using a corpus-level dependency graph and combine image-statement
+evidence with statement-compatibility terms. The resulting structured nonconformity score will measure whether
+a joint assignment of evidence states is supported by both the image and the learned statement dependencies.
+Aim 3: Develop structured conformal calibration for dependent statements. We will apply conformal
+calibration to structured nonconformity scores to obtain sets of admissible joint evidence assignments. Unlike
+standard conformal prediction for isolated labels, the calibrated object will describe which combinations of
+statement evidence states are statistically supported.
+Aim 4: Address imbalance, rare findings, and multidimensional clinical risk. We will evaluate calibration
+across clinically meaningful strata, including evidence state, anatomical region, statement type, and findingfrequency group. Rare findings will be grouped or handled conservatively when calibration data are insufficient.
+We will also use scalar clinically weighted losses, where appropriate, to study communication risks such as
+unsupported assertion, contradiction, omission, overconfidence, and inappropriate uncertainty.
+Aim 5: Extend validation from stated content to omissions and report behavior. We will probe candidate
+
+Page 3 of 12
+
+statements absent from the report to detect possible omissions of clinically important findings. Calibrated evidence
+will then be translated into report-level behavior: assert when supported, qualify when ambiguous, abstain or flag
+when unsupported, and indicate possible omissions when absent statements are image-supported.
+4.
+
+Detailed description of the proposed research
+
+4.1 Validation unit: image-conditioned clinical statements
+Let X ∈ X denote the observed radiological imaging study, such as a radiograph, CT volume, or MRI scan,
+and let T denote a generated or human-written report. The framework does not assume access to the internal
+report generator. It treats the report as a set of structured clinical statements S(T ) = s1 , . . . , sm . Each statement
+sj = (cj , aj , µj ) ∈ S encodes a clinical concept cj , an assertion state aj , and optional clinically relevant modifiers
+µj , such as location, laterality, severity, temporal change, or uncertainty language.
+For each statement, the validation task is to determine its evidence status with respect to the image, Y (X, sj ) ∈ Y,
+where, in the simplest setting, Y = {supported, contradicted, underdetermined}. Thus, the basic unit of
+validation is not a word, sentence, or dataset label alone, but an image-conditioned clinical statement.
+
+4.2 Representing dependencies among statements
+To account for dependencies among clinical statements, we define a corpus-level graph over normalized statements
+extracted from radiology reports. Graph-based representations have been used for pathology co-occurrence and
+structured radiology information Chen et al., 2020; Li et al., 2019; Jain et al., 2021. Here, the graph serves as a
+dependency prior within a structured conformal validation framework, rather than as a standalone graph-learning
+model.
+Let GD = (VD , ED ) denote a corpus-level dependency graph constructed from a corpus D of D reports. The nodes
+VD = {V1 , . . . , VK } are normalized clinical statements, and ED = (eij ) ∈ [−1, 1]K×K is a weighted adjacency
+matrix encoding pairwise relations among statements. Each node Vk is associated with a report-occurrence vector
+(vk,1 , . . . , vk,D ),
+
+vk,d ∈ {−1, 0, 1}, where vk,d = 1 indicates assertion in report d, vk,d = −1 indicates
+
+explicit absence or negation, and vk,d = 0 indicates non-mention or unresolved status.
+The edge weight eij represents the relation between statements Vi and Vj . Positive values indicate compatibility or
+co-occurrence, negative values indicate contradiction or clinical inconsistency, and values near zero indicate weak
+or no dependency. Edge weights may be estimated from report-level co-occurrence, negation and uncertainty
+patterns, and RadGraph-style entity and relation annotations Jain et al., 2021.
+For an individual report T , the relevant dependency structure is the subgraph induced by the statements in
+S(T ), possibly augmented by candidate high-priority statements for omission detection. These dependencies are
+incorporated into the structured nonconformity score through compatibility terms between evidence states. Thus,
+the graph provides a practical representation of statement dependencies, while the main contribution is conformal
+calibration of dependent image-conditioned statements.
+
+Page 4 of 12
+
+4.3 Image-statement evidence and structured nonconformity
+Image conditioning is case-specific and complementary to corpus-level dependency learning. For each statement
+y ∈ Y, or an equivalent evidence score
+
+sj , an image-statement evidence model produces ϕj (y; X, sj ),
+
+measuring how well the image supports, contradicts, or leaves undetermined the statement.
+The dependency model provides pairwise compatibility factors ψjk (yj , yk ; Rjk ), which evaluate whether the
+joint evidence states of two related statements are consistent with their learned relation. The structured evidence
+for a joint assignment YT is modeled as a product of image-conditioned statement evidence and corpus-level
+dependency compatibility:
+Q(X, T, YT ) =
+
+m
+Y
+
+ϕj (Yj ; X, sj )
+
+j=1
+
+Y
+
+ψjk (Yj , Yk ; Rjk ).
+
+(1)
+
+j<k
+
+Here, ϕj measures how well the image supports the evidence state of statement sj , while ψjk measures whether
+the joint evidence states of two statements are consistent with their learned relation. The structured nonconformity
+score is then defined as the negative log of this evidence, with an additional omission term:
+Astr (X, T, YT ) = −
+
+m
+X
+
+log ϕj (Yj ; X, sj ) − λ
+
+j=1
+
+X
+
+log ψjk (Yj , Yk ; Rjk ) + µAomit (X, T ).
+
+(2)
+
+j<k
+
+The score Astr is not optimized directly as a training loss. The image-evidence model and dependency model are
+learned, and the structured score defines the nonconformity measure used for conformal calibration.
+
+4.4 Structured conformal calibration
+Given a calibration set of image-report pairs with reference evidence states, conformal calibration will be applied
+to the structured nonconformity scores. For a target level 1 − α, the calibrated prediction object is a set of
+admissible joint evidence assignments,
+Γα (X, T ) = YT : Astr (X, T, YT ) ≤ qα ,
+where qα is the calibration quantile. This object provides calibrated evidence for the report as a dependent set of
+statements, rather than independent confidence scores for isolated findings.
+The resulting evidence sets will be translated into report behavior. A uniquely supported statement may be asserted.
+A statement whose evidence set includes underdetermination should be qualified or deferred. A contradicted
+statement should be withheld or flagged. Broad or unstable evidence sets indicate that the report should be
+reviewed rather than presented as definitive.
+
+4.5 Stratified calibration and multidimensional risk control
+We will evaluate the structured conformal object across pre-defined clinically meaningful strata. Let
+Ai = Astr (Xi , Ti , YTi )
+
+Page 5 of 12
+
+denote the structured nonconformity score for calibration case i, and let
+Ci = C(Xi , Ti , YTi ) ∈ C
+denote a stratum, such as statement type, anatomical region, evidence state, or finding-frequency group. The
+evidence state may distinguish present, absent, uncertain, and non-mentioned statements, allowing class imbalance
+to be evaluated explicitly.
+When a stratum c contains sufficient calibration samples, we will estimate a stratum-specific conformal threshold
+qα,c = Quantile1−α {Ai : Ci = c},
+and define
+Γstrat
+(X, T ) = {YT : Astr (X, T, YT ) ≤ qα,C(X,T,YT ) }.
+α
+We will address two practical challenges in calibration: label noise and limited calibration data. Since reportderived calibration labels may be noisy or uncertain, we will assess sensitivity to label noise and, when needed,
+consider noise-aware conformal calibration following Penso et al. Penso* et al., 2025. When calibration data
+are limited, as expected for rare findings, rare labels will be handled conservatively by grouping anatomically
+or clinically related labels before calibration, consistent with clustered class-conditional conformal prediction
+Ding et al., 2023, or by using the global threshold while reporting empirical coverage, set size, and abstention rate
+separately.
+The multidimensional component concerns the type of clinical communication error. For each test case, we define
+a risk vector
+
+Ri (λ) = Riassert (λ), Ricontr (λ), Riomit (λ), Riover (λ), Riunc (λ) ,
+corresponding to unsupported assertion, contradiction, omission, overconfident wording, and inappropriate
+uncertainty. The parameter λ controls the conservativeness of report behavior, for example the transition from
+assertion to qualification or abstention.
+To summarize clinically weighted risk, we will define a bounded scalar loss
+Li (λ) =
+
+X
+
+wℓ Riℓ (λ),
+
+ℓ
+
+X
+
+wℓ = 1,
+
+ℓ
+
+where larger weights may be assigned to clinically severe errors such as omission of critical findings or unsupported
+assertion of severe pathology. When Li (λ) is monotone in λ, conformal risk control will be used to select λ so
+that
+E[L(λ)] ≤ αrisk
+under the standard exchangeability assumption Angelopoulos et al., 2024. The individual components of Ri will
+also be reported separately, so that the safety–informativeness tradeoff is not hidden by a single weighted score.
+
+Page 6 of 12
+
+4.6 Candidate-statement probing for omissions
+Validating only statements that appear in a report cannot detect clinically important omissions. We will therefore
+construct a candidate set Q(X, T ) of statements that are absent from the report but potentially relevant to the
+image. Candidates may be obtained from the clinical statement vocabulary, high image-evidence scores, retrieval
+in the learned representation space, or clinician-defined high-priority findings.
+For each candidate q ∈ Q(X, T ), we evaluate an augmented statement set
+S + (T, q) = S(T ) ∪ {q}.
+The conformal machinery is then applied to the possible evidence states of q, yielding a calibrated set
+Γqα (X, T ) = {yq : ∃YT such that Astr (X, T, S + (T, q), (YT , yq )) ≤ qα }.
+If Γqα (X, T ) strongly supports a present or clinically reportable state for a statement absent from the report, the
+system flags a possible omission. If the evidence is ambiguous, the omission is qualified rather than asserted. If
+the candidate is not supported, no omission is flagged. These omission indicators contribute to the report-level
+risk component Romit defined above. Together, Sections 4.1–4.6 define the proposed validation pipeline, from
+structured statement extraction and dependency representation to calibrated evidence assignments and omission
+probing. The next sections describe the datasets and preliminary experiments used to instantiate and evaluate this
+framework.
+
+4.7 Datasets and clinical statement spaces
+The project will use two complementary public radiology domains. For chest radiography, we will use MIMICCXR and MIMIC-CXR-JPG Johnson, Pollard, Berkowitz, et al., 2019; Johnson, Pollard, Greenbaum, et al.,
+2019, which provide chest radiographs paired with free-text reports and structured report-derived labels. This
+domain supports experiments on common findings such as atelectasis, cardiomegaly, consolidation, edema, pleural
+effusion, pneumonia, and pneumothorax.
+For MRI, we will use MR-RATE Forithmus, 2026, which provides brain and spine MRI studies paired with
+radiology reports and pathology labels. This domain will test the framework under longer reports, heterogeneous
+anatomy, multi-sequence imaging, and more complex statement structures.
+In both domains, the clinical statement space will be constructed from normalized report findings and modifiers,
+including anatomical location, laterality, severity, uncertainty, and negation. Frequent findings will support stratumspecific calibration, while rare but clinically important findings will be grouped or evaluated conservatively without
+claiming label-specific validity.
+
+4.8 Evaluation, clinical input, and contingency plan
+Evaluation will include coverage, conformal set size, abstention rate, subgroup behavior, and communication-risk
+components: unsupported assertion, contradiction, omission, overconfident wording, and inappropriate uncertainty.
+Ablations will compare independent finding-level calibration, structured calibration without dependency terms,
+
+Page 7 of 12
+
+and the full dependency-aware framework.
+Clinical input will be obtained through collaboration with radiology experts at Soroka Medical Center. This
+collaboration will support definition of clinically meaningful statement vocabularies, prioritization of high-risk
+omissions, interpretation of uncertainty language, and qualitative review of selected failure cases. The core
+experiments will rely on public datasets; any use of local clinical data will be pursued only subject to the required
+institutional approvals.
+If statement extraction is noisy, we will restrict the vocabulary to high-confidence normalized statements. If
+dependency estimation is unstable, we will use simpler co-occurrence statistics, clinical rules, or expert-defined
+relations. If rare findings lack sufficient calibration samples, they will be grouped by clinical or anatomical
+similarity, or evaluated using global calibration without label-specific validity claims. If full report-generation
+integration is not feasible, the framework will be evaluated as a post-hoc validator of generated or reference
+reports.
+
+Figure 1: Label-frequency histograms for the two dataset domains. Left: MR-RATE brain/spine MRI labels. Right:
+MIMIC-CXR/CheXpert-style chest radiography labels. Labels were abbreviated for readability. The histograms illustrate
+long-tailed candidate statement vocabularies and motivate calibration strategies for frequent, imbalanced, and clinically
+high-priority findings.
+
+4.9 Experimental Setup and Results
+Table 1: Preliminary finding-level conformal prediction results. Pos/Neg coverage denotes empirical conformal coverage on definite positive
+and negative cases. Decisive accuracy is computed only for singleton conformal sets. Unc.→Abs. denotes expert-uncertain cases assigned the
+non-singleton set {Present, Absent}.
+
+Pathology
+
+Baseline
+
+Conformal prediction
+
+TPR
+
+TNR
+
+Acc.
+
+Pos Cov.
+
+Neg Cov.
+
+Decisive Acc.
+
+Unc.→Abs.
+
+Atelectasis
+
+28.0%
+
+90.9%
+
+80.6%
+
+91.4%
+
+88.3%
+
+76.8%
+
+56.8%
+
+Cardiomegaly
+
+56.2%
+
+91.6%
+
+86.4%
+
+90.9%
+
+89.3%
+
+84.3%
+
+33.7%
+
+Consolidation
+
+57.7%
+
+73.3%
+
+70.3%
+
+93.5%
+
+93.0%
+
+79.2%
+
+63.4%
+
+Pleural Effusion
+
+80.7%
+
+85.0%
+
+83.6%
+
+88.9%
+
+87.8%
+
+86.7%
+
+20.1%
+
+Pneumothorax
+
+44.9%
+
+91.0%
+
+84.4%
+
+94.7%
+
+90.2%
+
+79.0%
+
+54.5%
+
+Mean
+
+53.5%
+
+86.4%
+
+81.1%
+
+91.9%
+
+89.7%
+
+81.2%
+
+45.7%
+
+As a preliminary feasibility study, we evaluated a simplified finding-level conformal prediction framework on
+23,462 chest radiographs from 14,876 CheXpert patients across five pathologies. Unlike the proposed framework,
+this experiment uses independent binary finding labels and does not yet model report text, modifiers, omissions, or
+
+Page 8 of 12
+
+dependencies among structured clinical statements. Ground-truth labels extracted from radiology reports indicate
+whether each finding is present, absent, or uncertain. To prevent patient-level leakage, the data were partitioned
+into disjoint training (67%), validation (10%), calibration (10%), and test (13%) sets, with label distributions
+preserved across splits.
+The baseline model was a DenseNet121 multi-label classifier (Huang et al., 2017), trained with binary crossentropy loss. To define a controlled binary setting, uncertain cases were excluded from training and calibration,
+which used only definite positive and definite negative labels. We then applied class-conditional conformal
+prediction, computing separate nonconformity thresholds for present and absent labels to reduce the effect of
+class imbalance, with target coverage 1 − α = 0.9.
+At test time, uncertain cases were retained to probe whether expert uncertainty corresponds to conformal ambiguity.
+Singleton prediction sets, {Present} or {Absent}, were treated as decisive predictions, while the non-singleton
+set {Present, Absent} was treated as abstention. As shown in Table 1, conformal prediction achieved close
+to nominal coverage for definite positive and negative labels. The results also show that expert uncertainty
+and conformal abstention are related but not equivalent: uncertainty-to-abstention varies substantially across
+pathologies. This supports the need for the proposed statement-level framework, where uncertainty, omission,
+modifiers, and dependencies are modeled explicitly rather than treated as a third class.
+Milestone
+
+Due date
+
+1
+
+30/9/2027
+
+number
+Milestone title
+
+Structured clinical-statement representation and dependency prior
+
+Description
+
+Define image-conditioned clinical statements and modifiers; construct the normalized statement vocabulary; and represent dependencies among statements using a corpus-level graph.
+Corresponds to Sections 4.1–4.2.
+
+Milestone
+
+2
+
+Due date
+
+30/9/2028
+
+number
+Milestone title
+
+Structured nonconformity and conformal calibration
+
+Description
+
+Develop image-statement evidence scores, combine them with dependency compatibility
+terms, and calibrate admissible joint evidence assignments using structured conformal
+prediction. Includes stratified calibration, imbalance, rare findings, and multidimensional
+risk. Corresponds to Sections 4.3–4.5.
+
+Milestone
+
+3
+
+Due date
+
+30/9/2029
+
+number
+Milestone title
+
+Omission probing, report behavior, and full empirical evaluation
+
+Description
+
+Extend validation to candidate statements absent from the report, translate calibrated evidence into assertion, qualification, abstention, or omission flags, and complete empirical
+evaluation on the proposed datasets. Corresponds to Sections 4.6–4.9.
+
+Page 9 of 12
+
+5.
+
+Significance, innovation and potential benefits of the proposed research
+
+This project reframes the safety problem of generative medical AI from report similarity to evidence-constrained
+communication: what is a model clinically justified in saying, given the image?
+The main innovation is a structured validation unit: the image-conditioned clinical statement. Unlike labels or
+whole-report scores, statements preserve clinically relevant meaning, including presence, absence, uncertainty,
+modifiers, contradictions, and omissions. The second innovation is structured conformal validation of dependent statements. Rather than calibrating isolated findings, the framework calibrates admissible joint evidence
+assignments, accounting for image support and statement dependencies. The third innovation is the translation of
+calibrated evidence into report behavior: assertion, qualification, abstention, or omission flagging.
+The expected benefit is a safety layer for medical GenAI systems that goes beyond fluency and factuality scoring.
+It can support clinician-supervised drafting, pre-deployment auditing, model comparison, and monitoring of
+unsupported assertions, uncertainty mismatch, contradictions, and omissions. More broadly, the project provides
+a framework for free-text medical AI outputs that must remain accountable to observed evidence.
+6.
+
+Applicability
+
+The immediate application is AI-assisted radiology reporting. A generated report can be parsed into clinical
+statements, and the proposed validator can identify which statements are image-supported, uncertain, contradicted,
+or possibly missing. The radiologist remains responsible for the final report, but receives a structured safety signal.
+A second application is pre-deployment auditing of generative radiology systems. The framework can be used to
+measure statement-level coverage, abstention, set size, rare-finding behavior, uncertainty mismatch, contradiction
+rates, and omission patterns before clinical use.
+A third application is post-deployment monitoring. Changes in calibrated set size, abstention rate, or subgroup
+performance may indicate reduced reliability and motivate review or recalibration.
+Although the empirical focus is radiology, the framework is applicable to other medical domains in which
+generated text makes data-grounded clinical statements.
+7.
+
+Work plan and Gantt
+
+# Milestones
+
+6
+
+1 Statement representation and vocabulary (Sec. 4.1)
+2 Dependency representation among statements (Sec. 4.2)
+3 Structured evidence and nonconformity score (Sec. 4.3)
+4 Structured conformal calibration and risk control (Secs. 4.4–4.5)
+5 Candidate-statement probing and report behavior (Secs. 4.6–4.7)
+6 Dataset experiments and empirical evaluation (Secs. 4.8–4.9)
+
+Page 10 of 12
+
+12
+
+18
+
+24
+
+30
+
+36
+
+References
+Angelopoulos, A. N., S. Bates, A. Fisch, L. Lei, and T. Schuster (2024). “Conformal Risk Control”. In: International Conference on Learning Representations.
+Angelopoulos*, A. N. and S. Bates (2023). “Conformal Prediction: A Gentle Introduction”. In: Foundations and
+Trends in Machine Learning 16.4, pp. 494–591.
+Bates, S., A. N. Angelopoulos, L. Lei, J. Malik, and M. I. Jordan (2021). “Distribution-Free, Risk-Controlling
+Prediction Sets”. In: Journal of the ACM 68.6, pp. 1–34.
+Belhasin, O., Y. Romano, D. Freedman, E. Rivlin, and M. Elad (2024). “Principal Uncertainty Quantification with
+Spatial Correlation for Image Restoration Problems”. In: IEEE Transactions on Pattern Analysis and Machine
+Intelligence 46.5, pp. 3321–3333.
+Chen, B., J. Li, G. Lu, H. Yu, and D. Zhang (2020). “Label Co-Occurrence Learning With Graph Convolutional
+Networks for Multi-Label Chest X-Ray Image Classification”. In: IEEE Journal of Biomedical and Health
+Informatics 24.8, pp. 2292–2302.
+Ding, T., A. N. Angelopoulos, S. Bates, M. I. Jordan, and R. J. Tibshirani (2023). “Class-Conditional Conformal
+Prediction with Many Classes”. In: Advances in Neural Information Processing Systems. Vol. 36, pp. 64555–
+64576.
+Einbinder, B.-S., S. Feldman, S. Bates, A. N. Angelopoulos, A. Gendler, and Y. Romano (2022). “Label Noise
+Robustness of Conformal Prediction”. In: arXiv preprint arXiv:2209.14295.
+Feldman*, S., S. Bates, and Y. Romano (2025). “Conformal Prediction with Corrupted Labels: Uncertain
+Imputation and Robust Re-weighting”. In: arXiv preprint arXiv:2505.04733.
+Fisch*, A., T. Schuster, T. Jaakkola, and R. Barzilay (2022). “Conformal Prediction Sets with Limited False
+Positives”. In: International Conference on Machine Learning, pp. 6514–6532.
+Forithmus (2026). MR-RATE: Brain and Spine MRI Volumes Paired with Radiology Reports, Metadata, and
+Pathology Labels. Hugging Face Dataset.
+Huang, G., Z. Liu, L. Van Der Maaten, and K. Q. Weinberger (2017). “Densely Connected Convolutional
+Networks”. In: Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pp. 4700–
+4708.
+Irvin, J., P. Rajpurkar, M. Ko, Y. Yu, S. Ciurea-Ilcus, C. Chute, H. Marklund, B. Haghgoo, R. Ball, K. Shpanskaya,
+et al. (2019). “CheXpert: A Large Chest Radiograph Dataset with Uncertainty Labels and Expert Comparison”.
+In: AAAI Conference on Artificial Intelligence.
+Jain, S., A. Agrawal, A. Saporta, S. Q. H. Truong, D. N. Duong, T. Bui, P. Chambon, Y. Zhang, M. P. Lungren,
+A. Y. Ng, C. P. Langlotz, and P. Rajpurkar (2021). “RadGraph: Extracting Clinical Entities and Relations from
+Radiology Reports”. In: arXiv preprint arXiv:2106.14463.
+Johnson, A. E. W., T. J. Pollard, S. J. Berkowitz, N. R. Greenbaum, M. P. Lungren, C.-y. Deng, R. G. Mark, and
+S. Horng (2019). “MIMIC-CXR: A De-identified Publicly Available Database of Chest Radiographs with
+Free-text Reports”. In: Scientific Data 6.317.
+Johnson, A. E. W., T. J. Pollard, N. R. Greenbaum, M. P. Lungren, C.-y. Deng, Y. Peng, Z. Lu, R. G. Mark,
+S. J. Berkowitz, and S. Horng (2019). “MIMIC-CXR-JPG: A Large Publicly Available Database of Labeled
+Chest Radiographs”. In: arXiv preprint arXiv:1901.07042.
+Kutiel*, G., R. Cohen, M. Elad, D. Freedman, and E. Rivlin (2023). “Conformal Prediction Masks: Visualizing
+Uncertainty in Medical Imaging”. In: Machine Learning for Health, pp. 163–176.
+
+Page 11 of 12
+
+Li, C. Y., X. Liang, Z. Hu, and E. P. Xing (2019). “Knowledge-Driven Encode, Retrieve, Paraphrase for Medical
+Image Report Generation”. In: Proceedings of the AAAI Conference on Artificial Intelligence. Vol. 33. 01,
+pp. 6666–6673.
+Miura, Y., Y. Zhang, E. B. Tsai, C. P. Langlotz, and D. Jurafsky (2021). “Improving Factual Completeness and
+Consistency of Image-to-Text Radiology Report Generation”. In: arXiv preprint arXiv:2010.10042.
+Ostmeier, S., J. Xu, Z. Chen, M. Varma, L. Blankemeier, C. Bluethgen, A. E. Michalson, M. Moseley, C. Langlotz,
+A. S. Chaudhari, and J.-B. Delbrouck (2024). “GREEN: Generative Radiology Report Evaluation and Error
+Notation”. In: Findings of the Association for Computational Linguistics: EMNLP 2024, pp. 374–390.
+Pellegrini, C., E. Ozsoy, B. Busam, N. Navab, and M. Keicher (2023). “RaDialog: A Large Vision-Language
+Model for Radiology Report Generation and Conversational Assistance”. In: arXiv preprint arXiv:2311.18681.
+Penso*, C., J. Goldberger, and E. Fetaya (2025). “Conformal Prediction of Classifiers with Many Classes based
+on Noisy Labels”. In: Proceedings of the Fourteenth Symposium on Conformal and Probabilistic Prediction
+with Applications. Vol. 266. Proceedings of Machine Learning Research. PMLR, pp. 82–95.
+Romano, Y., E. Patterson, and E. J. Candès (2019). “Conformalized Quantile Regression”. In: Advances in Neural
+Information Processing Systems. Vol. 32.
+Sesia, M. and Y. Romano (2021). “Conformal Prediction using Conditional Histograms”. In: arXiv preprint
+arXiv:2105.08747.
+Shafer, G. and V. Vovk (2008). “A Tutorial on Conformal Prediction”. In: Journal of Machine Learning Research
+9, pp. 371–421.
+Smit, A., S. Jain, P. Rajpurkar, A. Pareek, A. Y. Ng, and M. P. Lungren (2020). “CheXbert: Combining Automatic
+Labelers and Expert Annotations for Accurate Radiology Report Labeling Using BERT”. In: Conference on
+Empirical Methods in Natural Language Processing, pp. 1500–1519.
+Vovk, V., A. Gammerman, and G. Shafer (2005). Algorithmic Learning in a Random World. Springer.
+Yu, F., M. Endo, R. Krishnan, I. Pan, A. Tsai, E. P. Reis, E. K. U. N. Fonseca, H. M. H. Lee, Z. S. H. Abad, A. Y.
+Ng, and P. Rajpurkar (2023). “Evaluating Progress in Automatic Chest X-ray Radiology Report Generation”.
+In: Patterns 4.9, p. 100802.
+Zaffran, M., A. Dieuleveut, J. Josse, and Y. Romano (2023). “Conformal Prediction with Missing Values”. In:
+Proceedings of the 40th International Conference on Machine Learning. Vol. 202. Proceedings of Machine
+Learning Research. PMLR, pp. 40578–40604.
+
+Page 12 of 12
+
+

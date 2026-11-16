@@ -1,0 +1,21 @@
+{
+  "n_eval": 18877,
+  "n_dropped_uncertain": 5517,
+  "direct_joint_coverage": 0.452985114160089,
+  "fully_decisive_rate": 0.07999152407691901,
+  "per_label_coverage": {
+    "Enlarged Cardiomediastinum": 0.9017852412989352,
+    "Cardiomegaly": 0.9034804259151348,
+    "Lung Opacity": 0.9107379350532394,
+    "Lung Lesion": 0.9045399163002595,
+    "Edema": 0.905069661492822,
+    "Consolidation": 0.8993484134131483,
+    "Pneumonia": 0.8962229167770303,
+    "Atelectasis": 0.9091486994755522,
+    "Pneumothorax": 0.9044339672617471,
+    "Pleural Effusion": 0.906870795147534,
+    "Pleural Other": 0.9074535148593527,
+    "Fracture": 0.8961169677385178,
+    "Support Devices": 0.905970228320178
+  }
+}
