@@ -243,6 +243,15 @@ plots/plotting scripts were deliberately deleted. Current experiments are
   no choosing clusters, metrics, methods, α or λ. Never modifies the pipeline. Escalates via
   `ESCALATION.md` rather than iterating variants.
 
+- **Winston Wolf** (`.claude/agents/winston-wolf.md`): the cleaner. After an experiment is
+  done and Tom has signed off, generalizes its reusable code (scorers, loaders, metrics)
+  into `conformal_methods/` and `conformal_common.py`. Refactor only: verifies numbers are
+  unchanged, keeps old import paths working, never edits finished experiment folders,
+  never deletes without Alon's approval.
+
+**Workflow (cleanup step):** after Tom signs off on a Jules experiment, invoke Winston on
+that folder; surface his move table and deletion candidates to Alon.
+
 **Workflow:** Tom designs an experiment (grounded in `RESEARCH_DIRECTION.md`) → Jules
 pre-registers and runs it in `experiments/<NNN>_<slug>/`, reporting joint coverage (validity
 gate) and efficiency (joint set size vs. unclustered and random-cluster baselines, with CIs)
