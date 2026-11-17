@@ -1,0 +1,60 @@
+{
+  "input_sha256_full": {
+    "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_validation.csv": "e2c7dfd3087154406d5fd79ae0284dad883926092538d80e854b13b2ed3b4119",
+    "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_conformal.csv": "cce3677863ab2a24a673339d7ab71ce1ef8a27c0e88ead9c7f9d4625bbaa59db",
+    "densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809_test.csv": "ab42e9a895e0b1c31f758bd420d935607ea216a7968472e089a597309ff5d3f5"
+  },
+  "validation_rows_all13_label_clean": 18570,
+  "validation_subjects_all13_label_clean": 5898,
+  "conformal_rows_all13_label_clean": 18754,
+  "conformal_subjects_all13_label_clean": 5926,
+  "test_rows_all13_label_clean": 18877,
+  "test_subjects_all13_label_clean": 5932,
+  "conformal_positives_all13_label_clean": {
+    "Enlarged Cardiomediastinum": 3893,
+    "Cardiomegaly": 3473,
+    "Lung Opacity": 7440,
+    "Lung Lesion": 523,
+    "Edema": 2094,
+    "Consolidation": 1642,
+    "Pneumonia": 1195,
+    "Atelectasis": 3419,
+    "Pneumothorax": 914,
+    "Pleural Effusion": 3937,
+    "Pleural Other": 151,
+    "Fracture": 304,
+    "Support Devices": 5352
+  },
+  "conformal_full_hierarchy_violations_label_clean": 0,
+  "admissible_13": 2400,
+  "admissible_factorisation": {
+    "ECM": 3,
+    "lung6": 25,
+    "roots5": 32,
+    "product": 2400
+  },
+  "PH": [
+    {
+      "name": "C1",
+      "m": 2,
+      "within_edges": 1,
+      "modal_state_mass_conformal": 0.7924176175749174,
+      "admissible": 3
+    },
+    {
+      "name": "C2",
+      "m": 6,
+      "within_edges": 6,
+      "modal_state_mass_conformal": 0.6032846326117095,
+      "admissible": 25
+    },
+    {
+      "name": "C3",
+      "m": 5,
+      "within_edges": 0,
+      "modal_state_mass_conformal": 0.5780633464860829,
+      "admissible": 32
+    }
+  ],
+  "PH_cross_cluster_edges": 0
+}

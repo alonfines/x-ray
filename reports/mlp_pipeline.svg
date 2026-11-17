@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1370 680" width="1370" height="680" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <linearGradient id="xr" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2a2a"/><stop offset="0.6" stop-color="#777"/><stop offset="1" stop-color="#d8d8d8"/>
+    </linearGradient>
+    <style>
+      .box{fill:#e6e6e6;stroke:#555;stroke-width:1.5}
+      .data{fill:#f6f6f6;stroke:#999;stroke-width:1.2;stroke-dasharray:5 4}
+      .key{fill:#dfe9f5;stroke:#4a6f99;stroke-width:1.5}
+      .t{font-size:20px;font-weight:bold;fill:#222;text-anchor:middle}
+      .s{font-size:15px;fill:#333;text-anchor:middle}
+      .c{font-size:17px;fill:#333;text-anchor:middle}
+      .n{fill:#ececec;stroke:#555;stroke-width:1.2}
+      .a{stroke:#333;stroke-width:1.6;fill:none;marker-end:url(#ar)}
+      .d{stroke:#4a6f99;stroke-width:1.6;fill:none;stroke-dasharray:6 4;marker-end:url(#ar)}
+      .lbl{font-size:14px;fill:#4a6f99;font-style:italic}
+    </style>
+  </defs>
+
+  <!-- fixed cluster -->
+  <rect class="key" x="560" y="12" width="560" height="50" rx="6"/>
+  <text class="t" x="840" y="35">Fixed cluster C of m labels</text>
+  <text class="s" x="840" y="54">chosen in advance — the same for every image</text>
+  <path class="d" d="M600,62 L600,148"/>
+  <text class="lbl" x="608" y="100">L1: selects inputs</text>
+  <path class="d" d="M1000,62 L1000,92"/>
+  <text class="lbl" x="1008" y="82">defines the 2^m output states</text>
+
+  <!-- row 1 -->
+  <rect x="30" y="130" width="130" height="160" fill="url(#xr)" stroke="#555"/>
+  <text x="95" y="205" font-size="16" fill="#fff" text-anchor="middle" font-weight="bold">Chest</text>
+  <text x="95" y="225" font-size="16" fill="#fff" text-anchor="middle" font-weight="bold">X-ray x</text>
+  <path class="a" d="M160,210 L200,210"/>
+
+  <rect class="box" x="200" y="170" width="150" height="80"/>
+  <text class="t" x="275" y="205">Classifier</text>
+  <text class="s" x="275" y="228">DenseNet (frozen)</text>
+  <path class="a" d="M350,210 L385,210"/>
+
+  <text class="c" x="415" y="112" font-weight="bold">13 logits</text>
+  <circle class="n" cx="415" cy="135" r="11"/><circle class="n" cx="415" cy="163" r="11"/><circle class="n" cx="415" cy="191" r="11"/>
+  <text class="c" x="415" y="226">⋮</text>
+  <circle class="n" cx="415" cy="257" r="11"/><circle class="n" cx="415" cy="285" r="11"/>
+  <text class="s" x="415" y="320">log p/(1−p)</text>
+  <path class="a" d="M440,210 L475,210"/>
+
+  <rect class="box" x="475" y="150" width="220" height="120"/>
+  <text class="t" x="585" y="185">MLP input</text>
+  <text class="s" x="585" y="215">L1: cluster's m logits</text>
+  <text class="s" x="585" y="240">L2: all 13 logits</text>
+  <path class="a" d="M695,210 L730,210"/>
+
+  <rect class="box" x="730" y="165" width="230" height="90"/>
+  <text class="t" x="845" y="200">MLP</text>
+  <text class="s" x="845" y="225" style="font-size:13px">Linear(d,64)–ReLU–Linear(64,2^m)</text>
+  <path class="a" d="M960,210 L985,210"/>
+
+  <text class="c" x="1010" y="112" font-weight="bold">2^m logits</text>
+  <circle class="n" cx="1010" cy="135" r="11"/><circle class="n" cx="1010" cy="163" r="11"/><circle class="n" cx="1010" cy="191" r="11"/>
+  <text class="c" x="1010" y="226">⋮</text>
+  <circle class="n" cx="1010" cy="257" r="11"/><circle class="n" cx="1010" cy="285" r="11"/>
+  <path class="a" d="M1035,210 L1065,210"/>
+
+  <rect class="box" x="1065" y="180" width="110" height="60"/>
+  <text class="t" x="1120" y="217">softmax</text>
+  <path class="a" d="M1175,210 L1205,210"/>
+
+  <text class="c" x="1270" y="112" font-weight="bold">p(y | x)</text>
+  <circle class="n" cx="1240" cy="135" r="11"/><circle class="n" cx="1240" cy="163" r="11"/><circle class="n" cx="1240" cy="191" r="11"/>
+  <text class="c" x="1240" y="226">⋮</text>
+  <circle class="n" cx="1240" cy="257" r="11"/><circle class="n" cx="1240" cy="285" r="11"/>
+  <text class="s" x="1300" y="160" text-anchor="start">one per</text>
+  <text class="s" x="1300" y="180" text-anchor="start">joint</text>
+  <text class="s" x="1300" y="200" text-anchor="start">state</text>
+  <text class="s" x="1300" y="220" text-anchor="start">y ∈ {0,1}^m</text>
+
+  <!-- connector to row 2 -->
+  <path class="a" d="M1240,300 L1240,335 L170,335 L170,378"/>
+
+  <!-- row 2 -->
+  <rect class="box" x="40" y="380" width="260" height="105"/>
+  <text class="t" x="170" y="420">Score</text>
+  <text class="s" x="170" y="450">s(x, y) = −log p(y | x)</text>
+  <path class="a" d="M300,432 L340,432"/>
+
+  <rect class="box" x="340" y="380" width="290" height="105"/>
+  <text class="t" x="485" y="420">Hierarchy mask</text>
+  <text class="s" x="485" y="448">s = +∞ for states that</text>
+  <text class="s" x="485" y="470">violate the disease hierarchy</text>
+  <path class="a" d="M630,432 L670,432"/>
+
+  <rect class="box" x="670" y="380" width="310" height="105"/>
+  <text class="t" x="825" y="414">Calibrate on half A</text>
+  <text class="s" x="825" y="442">q̂ = ⌈(n+1)(1−α)⌉-th smallest</text>
+  <text class="s" x="825" y="464">score of the TRUE state</text>
+  <path class="a" d="M980,432 L1020,432"/>
+
+  <rect class="box" x="1020" y="372" width="320" height="122"/>
+  <text class="t" x="1180" y="400">Prediction set (half B)</text>
+  <text class="s" x="1180" y="428">{ y : s(x, y) ≤ q̂ }</text>
+  <text class="s" x="1180" y="452">guard: always include top state</text>
+  <text class="s" x="1180" y="476">= a set of joint label vectors</text>
+
+  <!-- data strip -->
+  <text x="40" y="545" font-size="17" font-weight="bold" fill="#555">Data used by each stage (all subject-disjoint)</text>
+  <rect class="data" x="40" y="560" width="360" height="95" rx="6"/>
+  <text class="t" x="220" y="592">Train split</text>
+  <text class="s" x="220" y="620">→ trains the classifier,</text>
+  <text class="s" x="220" y="641">which is then frozen</text>
+
+  <rect class="data" x="430" y="560" width="470" height="95" rx="6"/>
+  <text class="t" x="665" y="592">Validation split</text>
+  <text class="s" x="665" y="620">split by subject: train / holdout (early stopping)</text>
+  <text class="s" x="665" y="641">→ trains the MLP</text>
+
+  <rect class="data" x="930" y="560" width="410" height="95" rx="6"/>
+  <text class="t" x="1135" y="592">Conformal + test pool</text>
+  <text class="s" x="1135" y="620">100 subject resplits into halves A / B</text>
+  <text class="s" x="1135" y="641">A → q̂ ,  B → evaluate the sets</text>
+</svg>

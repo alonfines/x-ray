@@ -1,0 +1,119 @@
+{
+  "independent_singletons_cost": 3.322186455130577,
+  "partitions": {
+    "3": {
+      "cost": 2.638932041823864,
+      "gain_vs_singletons": 0.6832544133067131,
+      "clusters": [
+        [
+          "Enlarged Cardiomediastinum",
+          "Cardiomegaly",
+          "Pleural Effusion"
+        ],
+        [
+          "Lung Opacity",
+          "Edema",
+          "Atelectasis"
+        ],
+        [
+          "Consolidation",
+          "Pneumonia"
+        ],
+        [
+          "Pneumothorax",
+          "Support Devices"
+        ],
+        [
+          "Pleural Other",
+          "Fracture"
+        ],
+        [
+          "Lung Lesion"
+        ]
+      ]
+    },
+    "4": {
+      "cost": 2.6093928664922714,
+      "gain_vs_singletons": 0.7127935886383057,
+      "clusters": [
+        [
+          "Lung Opacity",
+          "Lung Lesion",
+          "Edema",
+          "Atelectasis"
+        ],
+        [
+          "Consolidation",
+          "Pneumonia",
+          "Pneumothorax",
+          "Support Devices"
+        ],
+        [
+          "Enlarged Cardiomediastinum",
+          "Cardiomegaly",
+          "Pleural Effusion"
+        ],
+        [
+          "Pleural Other",
+          "Fracture"
+        ]
+      ]
+    },
+    "5": {
+      "cost": 2.563084714114666,
+      "gain_vs_singletons": 0.7591017410159111,
+      "clusters": [
+        [
+          "Lung Opacity",
+          "Edema",
+          "Consolidation",
+          "Pneumonia",
+          "Atelectasis"
+        ],
+        [
+          "Enlarged Cardiomediastinum",
+          "Cardiomegaly",
+          "Pleural Effusion"
+        ],
+        [
+          "Pneumothorax",
+          "Support Devices"
+        ],
+        [
+          "Pleural Other",
+          "Fracture"
+        ],
+        [
+          "Lung Lesion"
+        ]
+      ]
+    },
+    "6": {
+      "cost": 2.5322017520666122,
+      "gain_vs_singletons": 0.7899847030639648,
+      "clusters": [
+        [
+          "Lung Opacity",
+          "Lung Lesion",
+          "Edema",
+          "Consolidation",
+          "Pneumonia",
+          "Atelectasis"
+        ],
+        [
+          "Enlarged Cardiomediastinum",
+          "Cardiomegaly",
+          "Pleural Effusion"
+        ],
+        [
+          "Pneumothorax",
+          "Support Devices"
+        ],
+        [
+          "Pleural Other",
+          "Fracture"
+        ]
+      ]
+    }
+  }
+}

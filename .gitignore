@@ -61,3 +61,10 @@ third_party/
 !results/outputs/
 !results/outputs/**/
 !results/outputs/**/*.csv
+
+# MIMIC-CXR free-text reports (credentialed PhysioNet data — never commit)
+reports/files/
+reports/*.zip
+
+# Local extraction venv
+.venv-extraction/
