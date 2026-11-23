@@ -21,7 +21,7 @@ specifies, report true numbers, and touch nothing else.
 ## The only data you have
 No images, no database, no re-inference. Post-hoc analysis of frozen probabilities from one
 model (`densenet-alllabels-bce-hier-full-epoch=09-val_auroc_mean=0.809`), 13 labels, No
-Finding excluded, hierarchy correction on. All in `results/outputs/mimic/`, each 29 columns
+Finding excluded, hierarchy correction on. All in `data/mimic/probs/`, each 29 columns
 (`subject_id, study_id, dicom_id` + `{label}_prob` / `{label}_true_label`):
 
 | split | file | rows | subjects |
@@ -33,8 +33,8 @@ Finding excluded, hierarchy correction on. All in `results/outputs/mimic/`, each
 Splits are subject-disjoint. **Re-verify it as Gate 0 in every experiment** before computing
 anything, and record the result.
 
-Also available: `conformal_calibration/mimic/hier_unified/bcops_thresholds.pt` (load with
-`torch.load(..., weights_only=False)`) and `data/hierarchy.py` for the hard constraints.
+Also available: `models/mimic/data/hierarchy.py` (`CHEXPERT_HIERARCHY`). The hierarchy is only measured
+(`share_impossible`, violation rate), never enforced in scores or sets (removed after Exp058).
 
 If a spec needs anything not in these files, **say so and stop.** Never approximate or
 fabricate a missing input.
@@ -42,15 +42,16 @@ fabricate a missing input.
 ## Experiment history
 Folders below 046 were deleted on 2026-10-28. **Do not Glob for them, do not cite their
 numbers, do not try to recover them.** Current runs are `experiments/046` onward; new work
-takes the next sequential number. `MAX_RANK_EXPERIMENTS_SUMMARY.md` (Exp001–031) is the
-older archive.
+takes the next sequential number. Folders 046–057 are **reports only**: their code and result
+CSVs were deleted on 2026-11-17 as convoluted and error-prone. Cite their reported numbers as
+prior findings; never try to recover or reuse their code. Exp001–031 records are
+retired as well.
 
 Out of scope: retraining and re-inference.
 
 ## Hard rules
-1. **Never modify the pipeline.** `train*.py`, `test*.py`, `calibrate_per_label.py`,
-   `calculate_conformal_pred.py`, `densenet_model.py`, `utils.py`, `export*.py`, `data/`,
-   `losses/`, `configs/` are read-only. Import from them; never edit. A needed change is a
+1. **Never modify the pipeline.** Everything under `models/` (DenseNet training,
+   testing, inference, score export, data, losses, configs) is read-only. Import from them; never edit. A needed change is a
    proposal for Alon, not an edit you make.
 2. **All work under `experiments/<NNN>_<slug>/`**, numbered sequentially from 046.
    Append-only: never edit or delete a past folder.
@@ -83,7 +84,7 @@ within a binomial tolerance. If it fails, report the failure; don't compare its 
 **Uncertainty:** CIs on every efficiency delta from subject-level resplits or bootstrap
 (number of resplits and seeds pre-registered).
 
-**Secondary:** hierarchy-violation rate of fully-decisive output; decisive accuracy.
+**Secondary:** share of each set that violates the hierarchy (`share_impossible`); hierarchy-violation rate of fully-decisive output; decisive accuracy.
 
 Exclude rows with any uncertain (−1) member.
 
@@ -96,10 +97,10 @@ given spec, escalate.
 
 
 ## Reuse existing code first
-Before writing anything, check what already exists and import it: `conformal_common.py`
-(loading, Gate 0, scores, metrics), `conformal_methods/` (`max_rank`, `lp_scp`,
-`bonferrony`, `mlp_score`), and the shared helpers in `inference.py` and `data/`. Grep them,
-and skim earlier `experiments/` folders for scorers or metrics you'd otherwise rewrite.
+Before writing anything, check what already exists and import it: the `conformal/` package
+(`data` loading/Gate 0/draws, `partition`, `scores` per_label/lp_scp/mlp, `quantile` rules
+none/bonferroni/sidak/max_rank, `regions`, `evaluate`, `run.run`). Most experiments should be
+a few lines calling `conformal.run.run` plus `evaluate.summarize` / `evaluate.paired`. Grep it.
 Import rather than copy or re-implement. Write new code only for what's missing, and keep
 it small and parameterized so Winston can promote it later. Never modify the shared
 modules yourself (hard rule 1): if one almost fits, propose the change in your report. In

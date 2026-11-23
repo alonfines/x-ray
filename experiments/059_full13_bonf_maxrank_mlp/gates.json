@@ -1,0 +1,91 @@
+{
+  "gate0_disjoint": {
+    "pass": true,
+    "note": "conformal.data.load ran gate0 and the admissibility check without raising"
+  },
+  "gate1_pool_count": {
+    "pass": true,
+    "pool_n": 37631,
+    "split_clean_counts": {
+      "validation": 18570,
+      "conformal": 18754,
+      "test": 18877
+    }
+  },
+  "gate2_reproduction": {
+    "pass": true,
+    "maxrank_mean_size": 2855.402475564956,
+    "maxrank_mean_admissible_size": 849.9953294651989,
+    "bonferroni_mean_size": 3171.893643363099,
+    "bonferroni_frozen_mean_size": 3020.995179318748,
+    "bonferroni_coverage_resplit_mean": 0.9206154151586686,
+    "targets": {
+      "maxrank_mean_size": 2855.4,
+      "maxrank_mean_admissible_size": 850.0,
+      "bonferroni_mean_size_1dp": 3171.9
+    }
+  },
+  "soft_c0_mean_size_range": {
+    "pass": true,
+    "c0_resplit_mean_size": 29.956558211624152,
+    "range": [
+      25.0,
+      36.0
+    ]
+  },
+  "gate3_identity": {
+    "pass": true,
+    "differing_draws_by_seed": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0
+    }
+  },
+  "gate4a_coverage_not_below_0.895": {
+    "pass": true,
+    "coverage_resplit_mean": {
+      "A": 0.9206154151586686,
+      "B": 0.8997471379791839,
+      "C0": 0.8999440417458915,
+      "C1": 0.8999316305994759,
+      "C2": 0.9000865637179039,
+      "C3": 0.8998732455086601,
+      "C4": 0.9000474162936719,
+      "D0": 0.8993185769497113,
+      "D1": 0.8993899191985375,
+      "D2": 0.8993162126726876,
+      "D3": 0.899368439789296,
+      "D4": 0.899331953819983
+    }
+  },
+  "gate4b_coverage_not_above_0.905": {
+    "pass": true,
+    "above_window": {},
+    "coverage_resplit_mean": {
+      "A": 0.9206154151586686,
+      "B": 0.8997471379791839,
+      "C0": 0.8999440417458915,
+      "C1": 0.8999316305994759,
+      "C2": 0.9000865637179039,
+      "C3": 0.8998732455086601,
+      "C4": 0.9000474162936719,
+      "D0": 0.8993185769497113,
+      "D1": 0.8993899191985375,
+      "D2": 0.8993162126726876,
+      "D3": 0.899368439789296,
+      "D4": 0.899331953819983
+    }
+  },
+  "gate5_empty_rate": {
+    "pass": true,
+    "failing": {}
+  },
+  "gate6_seed_noise": {
+    "pass": true,
+    "hit_cap_C_seed0": false,
+    "c_seed_spread_log2_size_over_m": 0.005144674741996258,
+    "abs_mean_diff_C0_minus_B": 0.3729014893626445
+  }
+}

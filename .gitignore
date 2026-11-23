@@ -45,16 +45,7 @@ csv_files/
 submit_*.txt
 
 # Vendored third-party code (e.g. CheXbert) - not part of thesis repo history
-third_party/
 
-# === Exceptions: conformal calibration results ===
-# Un-ignore the conformal_calibration directory tree
-!conformal_calibration/
-!conformal_calibration/**/
-# Track thresholds, confusion matrices, and test CSVs
-!conformal_calibration/**/bcops_thresholds.pt
-!conformal_calibration/**/test_results.csv
-!conformal_calibration/**/*.png
 
 # === Exceptions: test inference results ===
 !results/
@@ -63,8 +54,6 @@ third_party/
 !results/outputs/**/*.csv
 
 # MIMIC-CXR free-text reports (credentialed PhysioNet data — never commit)
-reports/files/
-reports/*.zip
+models/mimic/reports/files/
+models/mimic/reports/*.zip
 
-# Local extraction venv
-.venv-extraction/
